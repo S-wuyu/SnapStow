@@ -1,12 +1,17 @@
 # SnapStow UI/UX design instructions
 
-These instructions apply to Figma design work and to changes to [design.md](design.md).
+These instructions apply to SnapStow interfaces, including Figma, the Windows application, the promotional demo, and [design.md](design.md).
 
 ## Sources of truth
 
 - Use [the PRD](../../PRD.md) for product scope, behavior constraints, and acceptance criteria. Surface requirements conflicts before changing the affected design.
 - Use the Figma file linked from [design.md](design.md) for the current visual design, prototype links, component states, and measured specifications. Keep the Markdown document as a versioned handoff for flows, state rules, specifications, and open issues.
 - Edit the existing Figma file and preserve linked frame IDs where practical. Create or edit remote files with the user's authorization. Use synthetic examples in every design frame and prototype.
+
+## Interface principles
+
+- Let the interface itself guide action. Use recognizable icons, placement, hover and focus states, and feedback on the object being manipulated. Use text for content, names, errors, and decisions that need words. Remove introductory instructions, redundant labels, and extra buttons where the primary surface already provides the action.
+- Compose every interface from the smallest meaningful reusable components. Define shared icons, icon controls, cards, and surfaces with common tokens and state variants. Compose and adjust those units before introducing one-off controls or screen-specific copies.
 
 ## Design and handoff
 

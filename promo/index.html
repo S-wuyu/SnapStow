@@ -7,32 +7,22 @@
   <meta name="description" content="在 Windows 模拟桌面亲手试用圈收 SnapStow，从群聊圈选附件、链接和备注，再到项目箱里找到它们。">
   <title>圈收 SnapStow · 圈一下，松手继续工作</title>
   <link rel="icon" href="./snapstow.png">
-  <link rel="stylesheet" href="./style.css">
-  <script src="./demo.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=desktop-icons">
+  <script src="./demo.js?v=desktop-icons" defer></script>
 </head>
 <body>
   <a class="skip" href="#try">跳到桌面体验</a>
-  <header class="site-header shell">
-    <a class="brand" href="./"><img src="./snapstow.png" alt="" width="38" height="38"><strong>圈收 <span>SnapStow</span></strong></a>
-    <a class="code-link" href="https://github.com/S-wuyu/SnapStow">GitHub <span aria-hidden="true">↗</span></a>
-  </header>
-
-  <main class="shell">
-    <div class="intro">
-      <h1>圈一下，松手继续工作。</h1>
-      <p>把群里的文件、链接和备注，收进对应的项目。</p>
-    </div>
+  <main class="shell" aria-label="圈收 SnapStow">
     <section class="desktop" id="try" aria-label="Windows 模拟桌面" tabindex="-1">
       <div class="screen" id="screen">
         <div class="wallpaper" aria-hidden="true"><i></i><i></i><i></i></div>
-        <div class="desktop-label">Windows 桌面 <span>·</span> 在线原型</div>
 
         <section class="window chat-window" id="chat-window" aria-labelledby="chat-title">
           <header class="chat-chrome">
-            <span class="chat-brand"><i class="glyph chat-glyph" aria-hidden="true"></i> 群聊</span>
+            <i class="glyph chat-glyph" aria-hidden="true"></i>
             <div class="chat-tools">
-              <button type="button" class="capture" id="capture" aria-pressed="false" aria-keyshortcuts="Alt+Shift+S"><i class="glyph capture-glyph" aria-hidden="true"></i><span>圈选</span></button>
-              <button type="button" class="chrome-close" id="min-chat" aria-label="最小化群聊" title="最小化群聊">−</button>
+              <button type="button" class="icon-control capture" id="capture" aria-label="圈选" aria-pressed="false" aria-keyshortcuts="Alt+Shift+S"><i class="glyph capture-glyph" aria-hidden="true"></i></button>
+              <button type="button" class="icon-control chrome-close" id="min-chat" aria-label="最小化群聊" title="最小化群聊"><span aria-hidden="true">−</span></button>
             </div>
           </header>
           <div class="chat-layout">
@@ -41,7 +31,7 @@
               <button type="button" data-channel="temp" aria-pressed="false" title="临时会话"><span class="avatar violet" aria-hidden="true">临</span><span>临时会话</span></button>
             </div>
             <div class="conversation">
-              <header class="conversation-head"><h2 id="chat-title">支付改版研发群</h2><span>示例群聊</span></header>
+              <header class="conversation-head"><h2 id="chat-title">支付改版研发群</h2></header>
               <div class="messages" id="messages" aria-label="群聊消息">
                 <p class="message-time">10:24</p>
                 <div class="message-author"><span class="avatar sender" aria-hidden="true">林</span><span>林一</span></div>
@@ -50,7 +40,7 @@
               </div>
               <form id="chat-form" class="composer">
                 <input id="reply" aria-label="发送示例消息" placeholder="发送消息…" maxlength="100" autocomplete="off">
-                <button type="submit" class="send" aria-label="发送" title="发送">↑</button>
+                <button type="submit" class="icon-control send" aria-label="发送" title="发送"><span aria-hidden="true">↑</span></button>
               </form>
             </div>
           </div>
@@ -60,48 +50,48 @@
           <header class="bench-chrome">
             <button type="button" class="bench-brand" id="bench-home" aria-label="圈收工作台首页"><img src="./snapstow.png" width="42" height="42" alt=""><span>圈收<small>SnapStow</small></span></button>
             <div class="bench-tools">
-              <button type="button" class="tool" id="lens" aria-label="放大镜" title="放大镜" aria-pressed="false"><img src="./art/search.svg" alt=""></button>
-              <button type="button" class="tool" id="settings" aria-label="仓库设置" title="仓库设置" aria-pressed="false"><img src="./art/gear.svg" alt=""></button>
-              <button type="button" class="tool" id="min-bench" aria-label="关闭工作台"><img src="./art/close.svg" alt=""></button>
+              <button type="button" class="icon-control tool" id="lens" aria-label="放大镜" title="放大镜" aria-pressed="false"><img src="./art/search.svg" alt=""></button>
+              <button type="button" class="icon-control tool" id="settings" aria-label="仓库设置" title="仓库设置" aria-pressed="false"><img src="./art/gear.svg" alt=""></button>
+              <button type="button" class="icon-control tool" id="min-bench" aria-label="关闭工作台"><img src="./art/close.svg" alt=""></button>
             </div>
           </header>
 
           <div class="bench-main" id="bench-main">
             <div class="board" id="board">
               <section class="pending" aria-label="待处理文件">
-                <button type="button" class="machine" id="queue-next" aria-label="下一组待处理文件" title="下一组待处理文件"><img src="./art/queue-left.svg" alt=""></button>
+                <button type="button" class="icon-control machine" id="queue-next" aria-label="下一组待处理文件" title="下一组待处理文件"><img src="./art/queue-left.svg" alt=""></button>
                 <div class="queue" id="queue"></div>
-                <button type="button" class="machine" id="queue-prev" aria-label="上一组待处理文件" title="上一组待处理文件"><img src="./art/queue-right.svg" alt=""></button>
+                <button type="button" class="icon-control machine" id="queue-prev" aria-label="上一组待处理文件" title="上一组待处理文件"><img src="./art/queue-right.svg" alt=""></button>
               </section>
               <section class="belt" id="belt" aria-label="项目箱传送带">
                 <div class="belt-bed" aria-hidden="true"><img src="./art/belt-frame.svg" alt=""><div class="rollers"></div></div>
                 <div class="boxes" id="boxes"></div>
                 <div class="belt-paging" aria-label="项目箱分页">
-                  <button type="button" id="box-prev" aria-label="上一组项目箱" title="上一组项目箱">‹</button>
-                  <button type="button" id="box-next" aria-label="下一组项目箱" title="下一组项目箱">›</button>
+                  <button type="button" class="icon-control belt-step" id="box-prev" aria-label="上一组项目箱" title="上一组项目箱"><span aria-hidden="true">‹</span></button>
+                  <button type="button" class="icon-control belt-step" id="box-next" aria-label="下一组项目箱" title="下一组项目箱"><span aria-hidden="true">›</span></button>
                 </div>
               </section>
               <div class="association" id="association" hidden aria-hidden="true"></div>
-              <button class="cut" id="cut" type="button" aria-label="剪断同名关联" title="剪断同名关联" draggable="true" hidden><img src="./art/connection-cut.svg" alt=""></button>
+              <button class="icon-control cut" id="cut" type="button" aria-label="剪断同名关联" title="剪断同名关联" draggable="true" hidden><img src="./art/connection-cut.svg" alt=""></button>
             </div>
 
             <section class="settings-page" id="settings-page" aria-label="仓库设置" hidden>
               <div class="warehouse">
                 <img class="warehouse-body" src="./art/warehouse.svg" alt="">
                 <button type="button" class="warehouse-sign" id="root-picker">工作总目录</button>
-                <button type="button" class="warehouse-folder tool" id="root-folder" aria-label="打开工作总目录" title="打开工作总目录"><img src="./art/folder-open.svg" alt=""></button>
+                <button type="button" class="icon-control warehouse-folder tool" id="root-folder" aria-label="打开工作总目录" title="打开工作总目录"><img src="./art/folder-open.svg" alt=""></button>
                 <button type="button" class="warehouse-door" id="warehouse-door" aria-label="抬起卷帘门，返回工作台" title="返回工作台"><img src="./art/warehouse-door.svg" alt=""></button>
                 <button type="button" class="warehouse-shortcut" id="shortcut" aria-label="设置圈选快捷键"></button>
               </div>
-              <button type="button" class="theme-control" id="theme" aria-pressed="false"><span aria-hidden="true">◐</span> 浅色外观</button>
+              <button type="button" class="icon-control theme-control" id="theme" aria-label="浅色外观" title="切换为浅色外观" aria-pressed="false"><span aria-hidden="true">◐</span></button>
             </section>
 
             <div id="archive-underlay" class="archive-underlay" hidden></div>
             <dialog id="archive" class="archive" aria-labelledby="archive-title">
               <div class="archive-head">
                 <h2 id="archive-title"></h2>
-                <button type="button" class="tool" id="archive-lens" aria-label="查看资料来源" title="放大镜" aria-pressed="false"><img src="./art/search.svg" alt=""></button>
-                <form method="dialog"><button class="tool" aria-label="关闭项目箱" autofocus><img src="./art/close.svg" alt=""></button></form>
+                <button type="button" class="icon-control tool" id="archive-lens" aria-label="查看资料来源" title="放大镜" aria-pressed="false"><img src="./art/search.svg" alt=""></button>
+                <form method="dialog"><button class="icon-control tool" aria-label="关闭项目箱" autofocus><img src="./art/close.svg" alt=""></button></form>
               </div>
               <div class="archive-content" id="archive-content"></div>
             </dialog>
@@ -113,9 +103,9 @@
 
       <div class="taskbar">
         <span class="taskbar-menu" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <button type="button" class="task-app" id="chat-app" aria-label="打开群聊" title="群聊" aria-pressed="true"><i class="glyph chat-glyph" aria-hidden="true"></i></button>
+        <button type="button" class="icon-control task-app" id="chat-app" aria-label="打开群聊" title="群聊" aria-pressed="true"><i class="glyph chat-glyph" aria-hidden="true"></i></button>
         <div class="tray">
-          <button type="button" class="tray-app" id="tray-app" aria-label="打开圈收工作台" title="打开圈收工作台" aria-expanded="false"><img src="./snapstow.png" width="30" height="30" alt=""><span>圈收</span></button>
+          <button type="button" class="icon-control tray-app" id="tray-app" aria-label="打开圈收工作台" title="打开圈收工作台" aria-expanded="false"><img src="./snapstow.png" width="30" height="30" alt=""></button>
           <span class="tray-system" aria-hidden="true">中 <time>10:24</time></span>
         </div>
       </div>
@@ -124,19 +114,21 @@
         <button type="button" id="tray-root">项目工作总目录</button>
         <button type="button" id="tray-exit">退出软件</button>
       </div>
+      <nav class="desktop-tools" aria-label="演示工具">
+        <button type="button" class="icon-control utility" id="reset" aria-label="重置演示" title="重置演示"><i class="reset-glyph" aria-hidden="true"></i></button>
+        <a class="icon-control utility" href="https://github.com/S-wuyu/SnapStow" aria-label="GitHub 仓库" title="GitHub 仓库"><img src="./art/github.png" alt=""></a>
+      </nav>
     </section>
-
-    <footer class="site-footer"><span>Windows 便携版 · 开发中</span><button type="button" id="reset">重置演示</button></footer>
   </main>
 
   <dialog id="explorer" class="explorer" aria-labelledby="explorer-title">
-    <div class="explorer-head"><h2 id="explorer-title">文件资源管理器 · 模拟</h2><form method="dialog"><button type="submit" aria-label="关闭资源管理器" autofocus>×</button></form></div>
+    <div class="explorer-head"><h2 id="explorer-title">文件资源管理器</h2><form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="关闭资源管理器" autofocus><span aria-hidden="true">×</span></button></form></div>
     <p class="path" id="explorer-path"></p>
     <ul id="explorer-list"></ul>
   </dialog>
 
   <dialog id="choose-root" class="explorer" aria-labelledby="choose-title">
-    <div class="explorer-head"><h2 id="choose-title">选择工作总目录 · 模拟</h2><form method="dialog"><button type="submit" aria-label="取消选择目录">×</button></form></div>
+    <div class="explorer-head"><h2 id="choose-title">选择工作总目录</h2><form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="取消选择目录"><span aria-hidden="true">×</span></button></form></div>
     <form id="root-form" class="root-form">
       <label for="root-choice">示例目录</label>
       <select id="root-choice"><option>D:\项目仓库</option><option>D:\工作\归档</option><option>E:\团队资料</option></select>
