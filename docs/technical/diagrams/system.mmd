@@ -1,0 +1,19 @@
+flowchart TB
+    U["用户"] -->|"全局快捷键"| CAP["Windows 适配<br/>按 HWND 抓取单帧 · 圈选"]
+    U -->|"主动打开"| UI["原生工作台与托盘"]
+    CAP -->|"关闭圈选层后移交"| PIPE["后台任务<br/>离线 OCR · 解析与归属"]
+    PIPE -->|"附件引用"| SEARCH["附件查询与验证<br/>Everything 或限定目录"]
+    INPUT["本机下载目录<br/>附件原件"] -->|"只读"| SEARCH
+    PIPE -->|"文字与账号资料"| CMD["归档服务<br/>写入 · 重试 · 归并 · 迁移"]
+    SEARCH -->|"候选与覆盖状态"| CMD
+    UI -->|"提交管理操作"| CMD
+    PIPE -->|"写入圈内原图"| SNAP["软件目录内<br/>受保护截图"]
+    CMD -->|"项目、来源与操作日志"| DB["软件目录内<br/>SQLite"]
+    CMD -->|"附件副本与资料条目"| WORK["用户选择的工作总目录<br/>项目文件夹与项目资料.md"]
+    UI -. "按需读取状态" .-> DB
+    UI -. "按需回看原图" .-> SNAP
+
+    classDef local fill:#e8f6f1,stroke:#699987,color:#183b32
+    classDef entry fill:#f8f4e6,stroke:#ab925a,color:#3d3014
+    class INPUT,SNAP,DB,WORK local
+    class U entry

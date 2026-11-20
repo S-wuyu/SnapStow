@@ -1,0 +1,64 @@
+---
+config:
+  themeCSS: |
+    .edgeLabel .label rect { fill: #f4f7fc; }
+    .edgeLabel .label text { fill: #16243a; }
+---
+erDiagram
+    PROJECT o|--o{ SOURCE : "当前归属"
+    SOURCE o|--o{ CAPTURE : "已识别来源"
+    CAPTURE ||--o{ ITEM : "解析得到"
+    PROJECT o|--o{ ITEM : "归档目标"
+    PROJECT ||--o{ ARTIFACT : "拥有归档对象"
+    ARTIFACT o|--o{ ITEM : "落盘或复用"
+    ITEM ||--o{ REVIEW : "处置记录"
+    PROJECT ||--o{ OPERATION : "目标项目操作"
+    OPERATION ||--o{ OPERATION_STEP : "包含步骤"
+    ITEM o|--o{ OPERATION_STEP : "影响资料"
+
+    PROJECT {
+        id project_id PK
+        string name "显示名称"
+        string relative_path "项目目录"
+    }
+    SOURCE {
+        id source_id PK
+        id project_id FK
+        string resolved_identity "经确认的来源身份"
+    }
+    CAPTURE {
+        id capture_id PK
+        id source_id FK
+        string snapshot_ref "受保护原图"
+        datetime captured_at
+    }
+    ITEM {
+        id item_id PK
+        id capture_id FK
+        id project_id FK
+        id artifact_id FK
+        string kind
+        string state
+    }
+    ARTIFACT {
+        id artifact_id PK
+        id project_id FK
+        string locator "相对路径、条目 ID 或截图引用"
+        string identity "附件文件标识与指纹"
+    }
+    REVIEW {
+        id review_id PK
+        id item_id FK
+        string reason
+    }
+    OPERATION {
+        id operation_id PK
+        id target_project_id FK
+        string state
+    }
+    OPERATION_STEP {
+        id step_id PK
+        id operation_id FK
+        id item_id FK
+        string state
+    }

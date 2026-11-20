@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant W as 热键与圈选
+    participant C as 窗口取帧
+    participant P as 后台任务
+    participant D as 本地存储
+    U->>W: 鼠标指向窗口，按全局快捷键
+    W->>C: 锁定窗口句柄和屏幕坐标
+    C-->>W: 返回冻结帧与像素范围，结束捕获会话
+    W-->>U: 展示窗口快照，允许拖动
+    alt Esc 取消
+        U->>W: 取消
+        W-->>U: 关闭圈选层，释放输入
+    else 有效选区松手
+        U->>W: 松手
+        W-->>U: 关闭圈选层，释放输入
+        W-)P: 移交冻结帧和选区
+        P->>D: 保护圈内原图，登记已接收
+        P->>P: 从同帧读标题与圈中内容，释放整帧
+        alt 项目归属不明确
+            P->>D: 记录待选项目
+        else 项目已确定
+            P->>D: 逐项归档并记录结果
+        end
+        Note over U,D: 处理结果在用户主动打开工作台后可见
+    end

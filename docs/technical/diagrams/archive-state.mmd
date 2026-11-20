@@ -1,0 +1,21 @@
+flowchart TB
+    IN["任务已接收<br/>OCR 与解析"] --> P{"项目明确？"}
+    P -->|"待确认"| PROJ["待选项目"]
+    PROJ -->|"用户选择"| ITEM
+    P -->|"已明确"| ITEM{"按资料项分别处理"}
+    ITEM -->|"网址或普通备注"| WRITE["写入资料"]
+    ITEM -->|"账号资料"| WRITE
+    ITEM -->|"附件"| FIND{"查找本地原件"}
+    FIND -->|"可靠唯一，目标可写入或复用"| WRITE
+    FIND -->|"本地歧义或识别不全"| REVIEW["待确认本地原件"]
+    FIND -->|"目标目录同名冲突"| CONFLICT["待处理项目内重名"]
+    FIND -->|"查找完整，零候选"| MISSING["未找到 · 本次跳过"]
+    FIND -->|"失败或覆盖不完整"| QUERY["查询未完成"]
+    QUERY -->|"重试查询"| FIND
+    REVIEW -->|"确认原件，复查目标"| TARGET{"目标路径冲突？"}
+    TARGET -->|"无冲突或可复用"| WRITE
+    TARGET -->|"有冲突"| CONFLICT
+    CONFLICT -->|"用户提交处置"| WRITE
+    WRITE -->|"提交成功"| DONE["已归档或复用"]
+    WRITE -->|"写入失败"| FAILED["写入失败，回到待处理区"]
+    FAILED -->|"只重试该项"| WRITE

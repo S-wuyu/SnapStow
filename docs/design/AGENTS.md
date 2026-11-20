@@ -1,0 +1,32 @@
+# SnapStow UI/UX design instructions
+
+These instructions apply to Figma design work and to changes to [design.md](design.md).
+
+## Sources of truth
+
+- Use [the PRD](../../PRD.md) for product scope, behavior constraints, and acceptance criteria. Surface requirements conflicts before changing the affected design.
+- Use the Figma file linked from [design.md](design.md) for the current visual design, prototype links, component states, and measured specifications. Keep the Markdown document as a versioned handoff for flows, state rules, specifications, and open issues.
+- Edit the existing Figma file and preserve linked frame IDs where practical. Create or edit remote files with the user's authorization. Use synthetic examples in every design frame and prototype.
+
+## Design and handoff
+
+- For proposed UI changes, inspect the affected flow, component, and both theme states. Build editable layers and reuse the existing components, modes, and styles where applicable.
+- For each affected prototype, keep a named entry frame and wire the primary path, cancellation, and relevant recovery states. Simulate Windows-only events explicitly. Keep capture release immediate and surface archive results only in the management window after the user opens it.
+- Maintain paired light and dark state boards. Annotate layout in Windows DIPs, including window size, breakpoints, control dimensions, and spacing. Record typography roles with font, weight, size, and line height. Specify motion trigger, duration, easing, and reduced-motion behavior.
+- Organize the design overview with playable flows first, annotated specifications next, and paired theme states below. Place each specification's explanation directly under its example. Show motion before and after with a playable example, and show typography in both themes with its font family, weight, size, line height, color, and intended use.
+- Keep the overview previews aligned with their source frames. Use the shared neutral theme tokens for surfaces, text, focus, and selection. Use semantic colors for warning and error states with a readable text label.
+- Use a flat workbench with independently paged unresolved files and project packages. Keep conflicts first and failed files last. Expose conflict actions on the workbench. Use machine-style side controls for the upper row and drag the slanted conveyor surface to page the lower row. Seat the packages on the rollers and light the package artwork on drop.
+- Clicking a package opens a vertically scrolling archive over a blurred workbench. Keep only the foreground lens visible and actionable. Keep files connected to their checklist even for a single group, with at most two direct file branches per checklist. Show packaging on the project box and copying at the affected file. Return a failed copy to the unresolved row with its project source.
+- Print project names on the horizontal sealing tape on each box, with a two-line limit and access to the full name. Animate the sealing tape on the box surface.
+- Reuse semantic icons across themes and widths. Give icon-only controls accessible names and tooltips. Pair item states and actions with readable content and keep counts paired with their units.
+- Map drag targets to the package, file relationship, or checklist being manipulated. Track moving connectors at their anchors throughout conflict resolution and checklist merging. Keep group provenance after merging. Show failed merges by returning the sheets and their connections to their starting positions. Use double-click or F2 for inline project renaming, with Enter to save and Escape to cancel.
+- Expose a short horizontal dashed break point on an idle conflict line. Click it to cut. Make the main line draggable and hide the break point during a drag.
+- Treat checklist cards as source records. Dragging a source out of a package queues its materials with up to two translucent trailing layers. Moving the card into a package preserves the independent source group. Keep disk directories in File Explorer and preserve provenance when files move within the project.
+- Use the whole package silhouette for the File Explorer right-click shortcut. Order the tray context menu as current shortcut, project work root, and exit. Left-clicking the tray icon opens or activates the workbench. Give the application icon visual priority over the bilingual title.
+- Use a single window Close control on the far right. Match the lens and settings buttons in size, outline, corner radius, and spacing. Give Close an accessible name and no tooltip. It dismisses the workbench to the tray. Keep its route distinct from dismissing an archive detail or exiting the app. Anchor the brand left and the tools and Close right as the window resizes. Treat 440 DIP as a review width.
+- Keep the lens icon visually stable. Signal lens mode with an inward edge glow and show transient previews anchored to the hovered object. Use source captures for files and available source material for checklists. Use the directory name as the package preview title and show creation time, contained file and subfolder counts, and content size. Keep original capture regions on the local machine under the PRD. Use synthetic credentials in Figma and review fixtures.
+- Use the warehouse facade for settings. Put the work directory on a physical-looking nameplate and place the File Explorer control beside it. Put shortcut capture and errors on the walls. Keep both settings independently editable. Return via the title, settings icon, or upward roll-up-door gesture.
+- Keep the project work root independently selectable when designing the directory picker and errors. Mark native directory behavior as simulated until verified on Windows.
+- Format review specifications with one field per line. Use the official Figma labels for triggers, transitions, easing, and effects. State sizes in Windows DIPs and animation durations in milliseconds.
+- In the same task, update the affected sections and frame links in [design.md](design.md) after verifying the Figma change. Reflect the actual Figma state and label proposals, placeholders, simulations, and native verification gaps. Update this instruction file when a durable design workflow or constraint changes.
+- Before handing off, open or inspect the relevant prototype and check destinations, key states, theme parity, legibility, focus, and consistency with the Markdown handoff. Report which checks ran and which remain pending.
