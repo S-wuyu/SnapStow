@@ -1,100 +1,189 @@
 "use strict";
 
-const id = (name) => document.getElementById(name);
-const chat = id("chat-panel");
-const bench = id("workbench-panel");
-const messages = id("messages");
-const selection = id("selection");
-const items = [...messages.querySelectorAll("[data-item]")];
-const pick = id("pick-panel");
-const captureButton = id("capture");
-const quickButton = id("quick");
-const next = id("next");
-const workbenchButton = id("show-workbench");
-const chatButton = id("show-chat");
-const queue = id("queue-items");
-const boxes = [...id("boxes").querySelectorAll("[data-project]")];
-const dialog = id("archive");
-const status = id("status");
+const byId = (id) => document.getElementById(id);
+const screen = byId("screen");
+const chat = byId("chat-window");
+const bench = byId("workbench");
+const messages = byId("messages");
+const messageItems = byId("message-items");
+const selection = byId("selection");
+const capture = byId("capture");
+const tray = byId("tray-app");
+const queue = byId("queue");
+const board = byId("board");
+const belt = byId("belt");
+const boxes = byId("boxes");
+const archive = byId("archive");
+const archiveContent = byId("archive-content");
+const underlay = byId("archive-underlay");
+const preview = byId("preview");
+const cut = byId("cut");
+const folder = byId("explorer");
+const rootDialog = byId("choose-root");
+const trayMenu = byId("tray-menu");
 
-const sample = {
-  sheet: { name: "验收清单.xlsx", source: "支付改版研发群", note: "林一发来一份验收清单。", type: "附件 · 48 KB" },
-  link: { name: "测试环境", source: "支付改版研发群", note: "https://pay.example.com/staging", type: "网址 · 示例地址" },
-  note: { name: "验收备注", source: "支付改版研发群", note: "这周用下面这版清单验收。", type: "备注" },
-  review: { name: "回归记录.pdf", source: "示例测试群", note: "这是演示用的回归记录，来源群尚未关联项目。", type: "附件 · 126 KB" },
+const names = {
+  dev: "支付改版研发群",
+  feedback: "支付联调反馈群",
+  temp: "临时会话",
+  launch: "上线准备群",
 };
-const projects = { pay: "支付改版", portal: "官网更新" };
-const copy = [
-  ["框住要留的消息", "点「开始圈选」，在聊天中拖一个方框。也可以用「点选资料」完成圈选。"],
-  ["松手，继续工作", "圈选层已经关闭。需要查看结果时，打开工作台。"],
-  ["打开项目箱", "点「支付改版」看刚才的资料。也可以把待确认的示例文件拖入箱子。"],
-  ["资料已按来源收好", "展开资料的来源，看看它是在哪个群里收到的。也可以回到群聊继续圈选。"],
-];
+const channels = { dev: ["note", "sheet", "link", "missing"], temp: ["brief"] };
+const fixtures = {
+  note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
+  sheet: { name: "验收清单.xlsx", source: "dev", body: "本地已下载 · 48 KB", kind: "file", icon: "X" },
+  link: { name: "测试环境网址", source: "dev", body: "https://pay.example.com/staging", kind: "link", icon: "↗" },
+  missing: { name: "回归录屏.mp4", source: "dev", body: "尚未下载 · 8.4 MB", kind: "missing", icon: "↓" },
+  brief: { name: "联调记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
+  old: { name: "接口清单.xlsx", source: "dev", body: "旧版 · 26 KB", kind: "file" },
+  new: { name: "接口清单.xlsx", source: "dev", body: "新版 · 34 KB", kind: "file" },
+  review: { name: "验收记录.pdf", source: "temp", body: "待归属 · 126 KB", kind: "file" },
+  feedback: { name: "反馈记录.md", source: "feedback", body: "空状态文案和按钮分组已复核。", kind: "note" },
+  query: { name: "交接说明.docx", source: "launch", body: "本地查询中断 · 上线准备", kind: "file" },
+  failed: { name: "回归记录.xlsx", source: "dev", body: "目标项目 · 支付改版", kind: "file" },
+};
+const rank = { conflict: 0, choose: 1, source: 1, missing: 2, query: 3, failed: 4 };
+const stateLabels = { choose: "待选项目", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
+const fileMime = "application/x-snapstow-file";
+const sourceMime = "application/x-snapstow-source";
+const lineMime = "application/x-snapstow-connection";
+const copying = new Map();
 
-let stage = 0;
+let projects, assignment, records, pending, merged, conflict;
+let root, shortcut, channel, queuePage, boxPage, selected, viewing, sourceSelection, composing;
+let lensMode = false;
+let settingsOpen = false;
+let listening = false;
+let chatOpen = true;
+let running = true;
 let captureActive = false;
-let gesture = null;
-let queuedSelection = null;
-let archived = new Map();
-let pending = new Map([["review", "待选项目"]]);
-let flashTimer;
+let captureDrag = null;
+let beltDrag = null;
+let doorDrag = null;
+let suppressMessageClick = false;
+let previousFocus;
+let openTimer;
+let lastQueueSize;
 
-function setStage(value) {
-  stage = value;
-  const [title, instruction] = copy[value];
-  id("guide-title").textContent = title;
-  id("guide-copy").textContent = instruction;
-  document.querySelectorAll(".steps li").forEach((step, index) => {
-    if (index === Math.min(value, 2)) step.setAttribute("aria-current", "step");
-    else step.removeAttribute("aria-current");
-  });
-  captureButton.hidden = quickButton.hidden = value !== 0;
-  next.hidden = value !== 1;
+function resetState() {
+  for (const task of copying.values()) clearTimeout(task.timer);
+  clearTimeout(openTimer);
+  copying.clear();
+  projects = new Map([["pay", "支付改版"], ["sync", "支付联调"], ["launch", "上线准备"], ["handoff", "运维交接"]]);
+  assignment = new Map([["dev", "pay"], ["feedback", "pay"], ["launch", "launch"]]);
+  records = new Map([["old", { project: "pay", name: fixtures.old.name }], ["feedback", { project: "pay", name: fixtures.feedback.name }]]);
+  pending = new Map([["old", "conflict"], ["new", "conflict"], ["review", "choose"], ["query", "query"], ["failed", "failed"]]);
+  merged = new Map();
+  conflict = { linked: "old", target: "pay" };
+  root = "D:\\项目仓库";
+  shortcut = "Alt+Shift+S";
+  channel = "dev";
+  queuePage = boxPage = 0;
+  selected = viewing = sourceSelection = null;
+  composing = { dev: [], temp: [] };
 }
 
-function announce(message = "") {
-  status.textContent = message;
+function node(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text) element.textContent = text;
+  return element;
 }
 
-function switchView(view) {
-  const inChat = view === "chat";
-  if (!inChat) {
-    stopCapture();
-    pick.hidden = true;
+function art(name, className) {
+  const image = node("img", className);
+  image.src = "./art/" + name + ".svg";
+  image.alt = "";
+  image.draggable = false;
+  return image;
+}
+
+function announce(text = "") {
+  byId("status").textContent = text;
+}
+
+function sourceOf(key) {
+  return key.startsWith("source:") ? key.split(":")[1] : fixtures[key].source;
+}
+
+function recordNames(project) {
+  return [...records].filter(([, entry]) => entry.project === project).map(([key, entry]) => [key, entry.name]);
+}
+
+function renderChat() {
+  byId("chat-title").textContent = names[channel];
+  for (const button of chat.querySelectorAll("[data-channel]")) {
+    button.setAttribute("aria-pressed", String(button.dataset.channel === channel));
   }
-  chat.hidden = !inChat;
-  bench.hidden = inChat;
-  chatButton.setAttribute("aria-pressed", String(inChat));
-  workbenchButton.setAttribute("aria-pressed", String(!inChat));
-  queuedSelection = null;
-  renderBench();
-  announce();
-  setStage(inChat ? 0 : 2);
+  messageItems.replaceChildren();
+  for (const key of channels[channel]) {
+    const item = fixtures[key];
+    const button = node("button", "message " + item.kind);
+    button.type = "button";
+    button.dataset.item = key;
+    button.title = "圈选" + (item.kind === "note" ? "这条备注" : item.name);
+    button.setAttribute("aria-label", button.title);
+    if (item.icon) {
+      const icon = node("i", "material-icon " + item.kind, item.icon);
+      icon.setAttribute("aria-hidden", "true");
+      const description = node("span");
+      description.append(node("strong", "", item.name), node("small", "", item.body));
+      button.append(icon, description);
+    } else {
+      button.append(node("span", "", item.body));
+    }
+    const marker = node("i", "glyph capture-glyph");
+    marker.setAttribute("aria-hidden", "true");
+    button.append(marker);
+    messageItems.append(button);
+  }
+  messages.querySelectorAll(".sent").forEach((item) => item.remove());
+  for (const line of composing[channel]) messages.insertBefore(node("p", "sent", line), selection);
+  messages.scrollTop = 0;
 }
 
-function stopCapture() {
-  const pointer = gesture?.pointer;
-  gesture = null;
-  if (pointer !== undefined && messages.hasPointerCapture(pointer)) messages.releasePointerCapture(pointer);
-  captureActive = false;
-  selection.hidden = true;
-  messages.classList.remove("capturing");
-  id("cancel-capture").hidden = true;
-  id("capture-hint").textContent = "可圈收附件、链接和备注。";
+function showChat(open) {
+  chatOpen = open;
+  if (!open) stopCapture();
+  chat.hidden = !open;
+  byId("chat-app").setAttribute("aria-pressed", String(open));
 }
 
 function startCapture() {
-  if (captureActive) return;
-  pick.hidden = true;
+  if (!running || !bench.hidden || folder.open || rootDialog.open) return;
+  if (!chatOpen) showChat(true);
   captureActive = true;
-  items.forEach((item) => item.classList.remove("marked"));
-  messages.classList.add("capturing");
-  id("cancel-capture").hidden = false;
-  id("capture-hint").textContent = "拖过虚线卡片，可按 Esc 取消。";
-  announce("圈选已开始。在聊天内容上拖出一个方框。");
+  chat.classList.add("is-capturing");
+  capture.setAttribute("aria-pressed", "true");
+  capture.title = "退出圈选 · Esc";
+  messages.scrollTop = 0;
 }
 
-function pointerPoint(event) {
+function stopCapture() {
+  const pointer = captureDrag?.pointer;
+  captureDrag = null;
+  captureActive = false;
+  if (pointer !== undefined && messages.hasPointerCapture(pointer)) messages.releasePointerCapture(pointer);
+  selection.hidden = true;
+  chat.classList.remove("is-capturing");
+  capture.setAttribute("aria-pressed", "false");
+  capture.title = "圈选 · " + shortcut;
+}
+
+function captureItems(keys) {
+  stopCapture();
+  for (const key of keys) {
+    if (records.has(key) || copying.has(key)) continue;
+    const item = fixtures[key];
+    const project = assignment.get(item.source);
+    if (item.kind === "missing") pending.set(key, "missing");
+    else if (!project) pending.set(key, "choose");
+    else if (item.kind === "file") beginCopy(key, project);
+    else records.set(key, { project, name: item.name });
+  }
+}
+
+function point(event) {
   const bounds = messages.getBoundingClientRect();
   return {
     x: Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)),
@@ -102,263 +191,844 @@ function pointerPoint(event) {
   };
 }
 
-function rectangleTo(point) {
-  const { x, y } = gesture.start;
+function rectangle(to) {
+  const from = captureDrag.origin;
   return {
-    left: Math.min(x, point.x),
-    top: Math.min(y, point.y),
-    width: Math.abs(x - point.x),
-    height: Math.abs(y - point.y),
+    left: Math.min(from.x, to.x),
+    top: Math.min(from.y, to.y),
+    width: Math.abs(from.x - to.x),
+    height: Math.abs(from.y - to.y),
   };
 }
 
-function drawSelection(rectangle) {
-  for (const [property, value] of Object.entries(rectangle)) selection.style[property] = `${value}px`;
-  selection.hidden = false;
-}
-
-function coveredItems(rectangle) {
+function covered(rect) {
   const bounds = messages.getBoundingClientRect();
-  return items.filter((item) => {
+  return [...messageItems.children].filter((item) => {
     const card = item.getBoundingClientRect();
-    const left = Math.max(bounds.left + rectangle.left, card.left);
-    const right = Math.min(bounds.left + rectangle.left + rectangle.width, card.right);
-    const top = Math.max(bounds.top + rectangle.top, card.top);
-    const bottom = Math.min(bounds.top + rectangle.top + rectangle.height, card.bottom);
-    const coverage = Math.max(0, right - left) * Math.max(0, bottom - top);
-    return coverage >= card.width * card.height * 0.18;
+    const horizontal = Math.min(bounds.left + rect.left + rect.width, card.right) - Math.max(bounds.left + rect.left, card.left);
+    const vertical = Math.min(bounds.top + rect.top + rect.height, card.bottom) - Math.max(bounds.top + rect.top, card.top);
+    return Math.max(horizontal, 0) * Math.max(vertical, 0) >= card.width * card.height * .16;
   }).map((item) => item.dataset.item);
 }
 
-function submitCapture(chosen, moveFocus = false) {
-  if (!chosen.length) {
-    announce("框内还没有资料。请拖过聊天中的任一资料卡片。");
-    return;
+function pageSize() {
+  return bench.clientWidth <= 530 ? 2 : 3;
+}
+
+function labelFor(key) {
+  return key.startsWith("source:") ? names[sourceOf(key)] : fixtures[key].name;
+}
+
+function fileCard(key, state, inArchive = false) {
+  const button = node("button", "file-card");
+  button.type = "button";
+  button.dataset[inArchive ? "archived" : "pending"] = key;
+  const name = inArchive ? records.get(key)?.name || copying.get(key)?.name || fixtures[key].name : labelFor(key);
+  button.append(art(state === "source" ? "checklist" : "paper"), node("strong", "", name));
+  let singleState = stateLabels[state];
+  if (state === "missing") {
+    button.append(art("download-missing", "missing-mark"));
+    singleState = "未下载或本地未找到";
+  } else if (singleState) {
+    button.append(node("span", "file-state", singleState));
   }
-  stopCapture();
-  pick.hidden = true;
-  items.forEach((item) => item.classList.toggle("marked", chosen.includes(item.dataset.item)));
-  const originalMissing = document.querySelector('[name="scenario"]:checked').value === "missing";
-  for (const key of chosen) {
-    if (archived.has(key)) continue;
-    if (key === "sheet" && originalMissing) {
-      pending.set(key, "本地未找到");
-    } else {
-      pending.delete(key);
-      archived.set(key, "pay");
-    }
+  if (!inArchive && ["conflict", "choose", "source"].includes(state)) {
+    button.draggable = true;
+    button.setAttribute("aria-pressed", String(selected === key));
   }
-  setStage(1);
-  announce("已提交圈选。");
-  if (moveFocus || document.activeElement === captureButton) next.focus({ preventScroll: true });
+  if (key === "old" && state === "conflict") singleState = "同名冲突，已有归档";
+  if (key === "new" && state === "conflict") singleState = "同名冲突，新收到";
+  if (state === "copying") {
+    singleState = "正在复制";
+    button.append(node("span", "file-state", singleState));
+  }
+  if (state === "history") singleState = "历史副本";
+  const description = singleState ? name + " · " + singleState : name;
+  button.setAttribute("aria-label", description);
+  button.title = description;
+  return button;
+}
+
+function renderQueue() {
+  const focus = document.activeElement?.dataset.pending;
+  const size = pageSize();
+  lastQueueSize = size;
+  const keys = [...pending.keys()].sort((a, b) => rank[pending.get(a)] - rank[pending.get(b)]);
+  const last = Math.max(0, Math.ceil(keys.length / size) - 1);
+  queuePage = Math.min(queuePage, last);
+  queue.replaceChildren(...keys.slice(queuePage * size, (queuePage + 1) * size).map((key) => fileCard(key, pending.get(key))));
+  byId("queue-prev").disabled = queuePage === 0;
+  byId("queue-next").disabled = queuePage === last;
+  if (focus) queue.querySelector('[data-pending="' + focus + '"]')?.focus({ preventScroll: true });
+  syncLine();
+}
+
+function renderBoxes() {
+  const focus = document.activeElement?.dataset.project;
+  const keys = [...projects.keys()];
+  boxes.replaceChildren();
+  for (const key of keys.slice(boxPage * 2, boxPage * 2 + 2)) {
+    const box = node("button", "project");
+    box.type = "button";
+    box.dataset.project = key;
+    box.title = projects.get(key);
+    const name = projects.get(key);
+    const action = selected ? "归档到" : "打开";
+    box.setAttribute("aria-label", action + name + "项目箱");
+    box.append(art("parcel-glow", "parcel-glow"), art("parcel", "parcel"), art("parcel-label", "parcel-label"), node("strong", "", name));
+    boxes.append(box);
+  }
+  byId("box-prev").disabled = boxPage === 0;
+  byId("box-next").disabled = (boxPage + 1) * 2 >= keys.length;
+  syncCopyBadges();
+  if (focus) boxes.querySelector('[data-project="' + focus + '"]')?.focus({ preventScroll: true });
+  syncLine();
+}
+
+function syncCopyBadges() {
+  const active = new Set([...copying.values()].map((task) => task.project));
+  for (const box of boxes.querySelectorAll("[data-project]")) {
+    box.toggleAttribute("data-copying", active.has(box.dataset.project));
+  }
+}
+
+function syncLine() {
+  const line = byId("association");
+  const from = conflict?.linked && queue.querySelector('[data-pending="' + conflict.linked + '"]');
+  const to = conflict && boxes.querySelector('[data-project="' + conflict.target + '"]');
+  const visible = Boolean(!bench.hidden && !settingsOpen && !archive.open && from && to);
+  line.hidden = cut.hidden = !visible;
+  if (!visible) return;
+  const boardRect = board.getBoundingClientRect();
+  const origin = from.getBoundingClientRect();
+  const end = to.getBoundingClientRect();
+  const x = origin.left + origin.width / 2 - boardRect.left;
+  const y = origin.bottom - boardRect.top;
+  const dx = end.left + end.width / 2 - boardRect.left - x;
+  const dy = end.top - boardRect.top - y;
+  line.style.setProperty("--x", x + "px");
+  line.style.setProperty("--y", y + "px");
+  line.style.setProperty("--length", Math.max(1, Math.hypot(dx, dy) - 4) + "px");
+  line.style.setProperty("--angle", Math.atan2(dy, dx) + "rad");
+  cut.style.setProperty("--cut-x", x + dx * .33 + "px");
+  cut.style.setProperty("--cut-y", y + dy * .33 + "px");
 }
 
 function renderBench() {
-  id("queue-count").textContent = `${pending.size} 项`;
-  queue.replaceChildren();
-  if (!pending.size) {
-    const empty = document.createElement("p");
-    empty.textContent = "暂无待处理资料";
-    queue.append(empty);
-  }
-  for (const [key, reason] of pending) {
-    const assignable = key === "review";
-    const card = document.createElement(assignable ? "button" : "div");
-    card.className = "queue-card";
-    const name = document.createElement("strong");
-    name.textContent = sample[key].name;
-    const state = document.createElement("small");
-    state.textContent = reason;
-    card.append(name, state);
-    if (assignable) {
-      card.type = "button";
-      card.dataset.pending = key;
-      card.draggable = true;
-      card.setAttribute("aria-pressed", String(queuedSelection === key));
-    }
-    queue.append(card);
-  }
-  for (const box of boxes) {
-    const key = box.dataset.project;
-    const count = [...archived.values()].filter((project) => project === key).length;
-    id(`${key}-count`).textContent = `${count} 项`;
-    const action = queuedSelection ? "归档到" : "打开";
-    box.setAttribute("aria-label", `${action}${projects[key]}项目箱，${count} 项`);
-  }
+  if (bench.hidden) return;
+  renderQueue();
+  renderBoxes();
+  if (archive.open) renderArchive();
 }
 
-function placeInProject(key, box) {
-  if (key !== "review" || !pending.has(key)) return;
-  const project = box.dataset.project;
-  archived.set(key, project);
-  pending.delete(key);
-  queuedSelection = null;
-  for (const entry of boxes) entry.classList.remove("drop-target", "received");
-  renderBench();
-  box.classList.add("received");
-  clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => box.classList.remove("received"), 650);
-  announce(`${sample[key].name} 已归档到${projects[project]}。`);
-  box.focus({ preventScroll: true });
-}
-
-function archiveItem(item) {
-  const li = document.createElement("li");
-  li.className = "archive-item";
-  const name = document.createElement("strong");
-  name.textContent = item.name;
-  const meta = document.createElement("small");
-  meta.textContent = item.type;
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  summary.textContent = "查看示例来源";
-  const note = document.createElement("p");
-  note.textContent = item.note;
-  details.append(summary, note);
-  li.append(name, meta, details);
-  return li;
-}
-
-function openArchive(project) {
-  id("archive-title").textContent = projects[project];
-  const content = id("archive-content");
-  content.replaceChildren();
-  const groups = new Map();
-  for (const [key, destination] of archived) {
-    if (destination !== project) continue;
-    const item = sample[key];
-    if (!groups.has(item.source)) groups.set(item.source, []);
-    groups.get(item.source).push(item);
-  }
-  for (const [source, entries] of groups) {
-    const group = document.createElement("section");
-    group.className = "archive-group";
-    const title = document.createElement("h4");
-    title.textContent = source;
-    const list = document.createElement("ul");
-    list.className = "archive-list";
-    list.append(...entries.map(archiveItem));
-    group.append(title, list);
-    content.append(group);
-  }
-  if (!groups.size) {
-    const empty = document.createElement("p");
-    empty.className = "archive-empty";
-    empty.textContent = "这个箱子还没有资料。";
-    content.append(empty);
+function showBench(open) {
+  if (!running) return;
+  closeTray();
+  if (!open) closeArchive(false);
+  stopCapture();
+  bench.hidden = !open;
+  tray.setAttribute("aria-expanded", String(open));
+  chat.inert = open;
+  if (open) {
+    renderBench();
+    byId("bench-home").focus({ preventScroll: true });
   } else {
-    setStage(3);
+    clearTimeout(openTimer);
+    showPreview();
+    announce();
+    tray.focus({ preventScroll: true });
   }
-  dialog.showModal();
 }
 
-captureButton.addEventListener("click", startCapture);
-quickButton.addEventListener("click", () => {
-  stopCapture();
-  pick.hidden = false;
-  pick.querySelector("input").focus();
+function beginCopy(key, project, name = fixtures[key].name) {
+  if (copying.has(key)) return;
+  const wasPending = pending.delete(key);
+  const task = { project, name };
+  task.timer = setTimeout(() => {
+    copying.delete(key);
+    records.set(key, { project: task.project, name: task.name });
+    if (!bench.hidden) {
+      syncCopyBadges();
+      if (archive.open && viewing === task.project) renderArchive();
+    }
+  }, 620);
+  copying.set(key, task);
+  if (!bench.hidden) {
+    if (wasPending) renderQueue();
+    syncCopyBadges();
+    if (archive.open && viewing === project) renderArchive();
+  }
+}
+
+function newName(key, project) {
+  const original = fixtures[key].name;
+  const used = new Set(recordNames(project).map(([, name]) => name));
+  for (const task of copying.values()) if (task.project === project) used.add(task.name);
+  if (!used.has(original)) return original;
+  const dot = original.lastIndexOf(".");
+  const base = dot < 0 ? original : original.slice(0, dot);
+  const ext = dot < 0 ? "" : original.slice(dot);
+  let version = 2;
+  while (used.has(base + " (" + version + ")" + ext)) version++;
+  return base + " (" + version + ")" + ext;
+}
+
+function place(key, project) {
+  const state = pending.get(key);
+  if (!["source", "choose", "conflict"].includes(state)) return;
+  let operation = null;
+  if (state === "source") {
+    const source = sourceOf(key);
+    for (const [file, entry] of records) {
+      if (sourceOf(file) === source && entry.project !== project) {
+        entry.name = newName(file, project);
+        entry.project = project;
+      }
+    }
+    for (const [file, task] of copying) {
+      if (sourceOf(file) === source && task.project !== project) {
+        task.name = newName(file, project);
+        task.project = project;
+      }
+    }
+    merged.delete(source);
+    assignment.set(source, project);
+    pending.delete(key);
+  } else if (state === "conflict") {
+    const previous = records.get("old");
+    const replace = key === "new" && (!conflict?.linked || conflict.linked === "new") && previous?.project === project;
+    pending.delete("old");
+    pending.delete("new");
+    conflict = null;
+    if (key === "new" || previous?.project !== project) {
+      if (replace) records.set("old", { ...previous, historical: true });
+      operation = [key, project, replace ? previous.name : newName(key, project)];
+    }
+  } else {
+    const source = sourceOf(key);
+    if (!assignment.has(source)) assignment.set(source, project);
+    operation = [key, project, newName(key, project)];
+  }
+  selected = null;
+  if (operation) beginCopy(...operation);
+  renderBench();
   announce();
+  boxes.querySelector('[data-project="' + project + '"]')?.focus({ preventScroll: true });
+}
+
+function changeQueue(direction) {
+  const trigger = document.activeElement;
+  queuePage += direction;
+  selected = null;
+  renderQueue();
+  renderBoxes();
+  if (trigger?.disabled) byId(direction > 0 ? "queue-prev" : "queue-next").focus({ preventScroll: true });
+  showPreview();
+}
+
+function changeBoxes(direction) {
+  const trigger = document.activeElement;
+  boxPage = Math.max(0, Math.min(Math.ceil(projects.size / 2) - 1, boxPage + direction));
+  renderBoxes();
+  if (trigger?.disabled) byId(direction > 0 ? "box-prev" : "box-next").focus({ preventScroll: true });
+  showPreview();
+}
+
+function renderArchive() {
+  if (!viewing) return;
+  byId("archive-title").textContent = projects.get(viewing);
+  const offset = archiveContent.scrollTop;
+  const focused = document.activeElement?.dataset;
+  archiveContent.replaceChildren();
+  const groups = new Map();
+  const addFile = (key, state) => {
+    const source = sourceOf(key);
+    if (pending.has("source:" + source)) return;
+    const group = merged.get(source) || source;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push({ key, state, source });
+  };
+  for (const [key, entry] of records) if (entry.project === viewing) addFile(key, entry.historical ? "history" : "saved");
+  for (const [key, task] of copying) if (task.project === viewing) addFile(key, "copying");
+
+  for (const [source, files] of groups) {
+    const section = node("section", "group");
+    const card = node("button", "group-card");
+    card.type = "button";
+    card.dataset.source = source;
+    card.draggable = true;
+    card.title = names[source];
+    card.setAttribute("aria-pressed", String(sourceSelection === source));
+    card.append(art("checklist"), node("strong", "", names[source]));
+    const origins = [...new Set(files.map((entry) => entry.source))];
+    if (origins.length > 1) card.append(node("small", "group-sources", origins.map((key) => names[key]).join("、")));
+    section.append(card);
+
+    const actions = node("div", "group-actions");
+    const move = node("button", "group-move", "移出来源");
+    move.type = "button";
+    move.dataset.moveSource = source;
+    move.setAttribute("aria-label", "移出" + names[source]);
+    actions.append(move);
+    section.append(actions);
+
+    const list = node("ul", "group-files");
+    for (const entry of files) {
+      const row = node("li");
+      row.append(fileCard(entry.key, entry.state, true));
+      list.append(row);
+    }
+    section.append(list);
+    archiveContent.append(section);
+  }
+  archiveContent.scrollTop = offset;
+  if (focused?.archived) archiveContent.querySelector('[data-archived="' + focused.archived + '"]')?.focus({ preventScroll: true });
+  if (focused?.source) archiveContent.querySelector('[data-source="' + focused.source + '"]')?.focus({ preventScroll: true });
+}
+
+function openArchive(project, trigger) {
+  clearTimeout(openTimer);
+  if (archive.open) return;
+  previousFocus = trigger;
+  viewing = project;
+  sourceSelection = null;
+  setLens(false);
+  renderArchive();
+  board.inert = true;
+  byId("lens").hidden = byId("settings").hidden = true;
+  underlay.hidden = false;
+  archive.show();
+  syncLine();
+}
+
+function moveSource(key) {
+  if (!viewing) return;
+  const group = [key, ...[...merged].filter(([, target]) => target === key).map(([source]) => source)];
+  for (const source of group) pending.set("source:" + source, "source");
+  queuePage = 0;
+  closeArchive(false);
+  renderQueue();
+  announce(names[key] + "已移到待处理区");
+}
+
+function mergeSources(source, target) {
+  if (source === target) return;
+  for (const [key, value] of merged) if (value === source) merged.set(key, target);
+  merged.set(source, target);
+  sourceSelection = null;
+  renderArchive();
+  archiveContent.querySelector('[data-source="' + target + '"]')?.focus({ preventScroll: true });
+}
+
+function setLens(enabled) {
+  lensMode = enabled;
+  bench.classList.toggle("lens-on", enabled);
+  byId("lens").setAttribute("aria-pressed", String(enabled && !archive.open));
+  byId("archive-lens").setAttribute("aria-pressed", String(enabled && archive.open));
+  showPreview();
+}
+
+function showPreview(target) {
+  preview.hidden = true;
+  if (!lensMode || !target) return;
+  const key = target.dataset.pending || target.dataset.archived;
+  let title;
+  let text;
+  if (key) {
+    title = records.get(key)?.name || labelFor(key);
+    text = names[sourceOf(key)] + " · " + (fixtures[key]?.body || "待迁来源");
+  } else if (target.dataset.source) {
+    title = names[target.dataset.source];
+    text = "示例会话来源";
+  } else if (target.dataset.project) {
+    title = projects.get(target.dataset.project);
+    text = "创建于 2026-11-20 · " + recordNames(target.dataset.project).length + " 项资料 · 0 个子目录";
+  }
+  if (!title) return;
+  preview.replaceChildren(node("strong", "", title), node("span", "", text));
+  preview.hidden = false;
+  const frame = byId("bench-main").getBoundingClientRect();
+  const card = target.getBoundingClientRect();
+  const left = Math.max(6, Math.min(frame.width - preview.offsetWidth - 6, card.right - frame.left + 8));
+  const top = Math.max(6, Math.min(frame.height - preview.offsetHeight - 6, card.top - frame.top + card.height * .6));
+  preview.style.left = left + "px";
+  preview.style.top = top + "px";
+}
+
+function showSettings(open) {
+  if (archive.open) return;
+  settingsOpen = open;
+  listening = false;
+  setLens(false);
+  board.hidden = open;
+  byId("settings-page").hidden = !open;
+  byId("settings").setAttribute("aria-pressed", String(open));
+  byId("lens").disabled = open;
+  byId("root-picker").textContent = root || "工作总目录";
+  byId("root-folder").disabled = !root;
+  byId("shortcut").textContent = shortcut.replaceAll("+", " + ");
+  syncLine();
+}
+
+function openFolder(project) {
+  closeTray();
+  if (!root) return;
+  byId("explorer-path").textContent = project ? root + "\\" + projects.get(project) : root;
+  const list = byId("explorer-list");
+  const namesHere = project ? recordNames(project).filter(([key]) => !records.get(key).historical).map(([, name]) => name) : [...projects.values()];
+  list.replaceChildren(...namesHere.map((name) => node("li", "", name)));
+  if (!namesHere.length) list.append(node("li", "", "空文件夹"));
+  folder.showModal();
+}
+
+function openTray() {
+  trayMenu.querySelector("span").textContent = shortcut.replaceAll("+", " + ");
+  byId("tray-root").disabled = !root;
+  trayMenu.hidden = false;
+  byId("tray-shortcut").focus({ preventScroll: true });
+}
+
+function closeTray() {
+  trayMenu.hidden = true;
+}
+
+function renameProject(box) {
+  clearTimeout(openTimer);
+  if (boxes.querySelector(".rename")) return;
+  const project = box.dataset.project;
+  const name = projects.get(project);
+  const input = node("input", "rename");
+  input.value = name;
+  input.maxLength = 36;
+  input.setAttribute("aria-label", "重命名" + name);
+  const wrapper = node("div", "rename-wrapper");
+  const rect = box.getBoundingClientRect();
+  const deck = boxes.getBoundingClientRect();
+  wrapper.style.left = rect.left - deck.left + "px";
+  wrapper.style.top = rect.top - deck.top + rect.height * .54 + "px";
+  wrapper.style.width = rect.width + "px";
+  wrapper.append(input);
+  boxes.append(wrapper);
+  input.focus();
+  input.select();
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      wrapper.remove();
+      box.focus();
+    } else if (event.key === "Enter") {
+      const value = input.value.trim();
+      if (!value || [...projects].some(([key, label]) => key !== project && label === value)) {
+        announce("请输入一个未使用的项目名");
+        return;
+      }
+      projects.set(project, value);
+      wrapper.remove();
+      renderBoxes();
+      announce();
+      boxes.querySelector('[data-project="' + project + '"]').focus();
+    }
+  });
+  input.addEventListener("blur", () => setTimeout(() => wrapper.remove(), 0), { once: true });
+}
+
+function shortcutFrom(event) {
+  if (!/^[a-z]$/i.test(event.key) || !(event.ctrlKey || event.altKey || event.metaKey)) return "";
+  const keys = [event.ctrlKey && "Control", event.altKey && "Alt", event.shiftKey && "Shift", event.metaKey && "Meta", event.key.toUpperCase()];
+  return keys.filter(Boolean).join("+");
+}
+
+function reset() {
+  closeArchive(false);
+  if (folder.open) folder.close();
+  if (rootDialog.open) rootDialog.close();
+  resetState();
+  running = true;
+  tray.disabled = capture.disabled = false;
+  showBench(false);
+  bench.dataset.theme = "dark";
+  byId("theme").lastChild.textContent = " 浅色外观";
+  byId("theme").setAttribute("aria-pressed", "false");
+  showSettings(false);
+  showChat(true);
+  chat.inert = false;
+  capture.setAttribute("aria-keyshortcuts", shortcut);
+  byId("reply").value = "";
+  renderChat();
+}
+
+capture.addEventListener("click", () => captureActive ? stopCapture() : startCapture());
+chat.querySelector(".channels").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-channel]");
+  if (!button || button.dataset.channel === channel) return;
+  stopCapture();
+  channel = button.dataset.channel;
+  renderChat();
 });
-pick.addEventListener("submit", (event) => {
+byId("chat-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  const chosen = new FormData(pick).getAll("item");
-  if (chosen.length) submitCapture(chosen, true);
-  else announce("请至少选择一项资料。");
-});
-id("cancel-pick").addEventListener("click", () => {
-  pick.hidden = true;
-  quickButton.focus();
-  announce();
-});
-
-function cancelCapture() {
+  const input = byId("reply");
+  const text = input.value.trim();
+  if (!text) return;
   stopCapture();
-  announce("已取消圈选。");
-  captureButton.focus({ preventScroll: true });
-}
-
-id("cancel-capture").addEventListener("click", cancelCapture);
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && captureActive) cancelCapture();
+  composing[channel].push(text);
+  messages.insertBefore(node("p", "sent", text), selection);
+  messages.scrollTop = messages.scrollHeight;
+  input.value = "";
+  input.focus({ preventScroll: true });
+});
+messageItems.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-item]");
+  if (item && !suppressMessageClick && running) captureItems([item.dataset.item]);
 });
 messages.addEventListener("pointerdown", (event) => {
-  if (!captureActive || gesture || event.button !== 0) return;
-  gesture = { start: pointerPoint(event), pointer: event.pointerId };
-  messages.setPointerCapture(event.pointerId);
-  drawSelection(rectangleTo(gesture.start));
+  if (!captureActive || captureDrag || event.button !== 0) return;
+  captureDrag = { pointer: event.pointerId, origin: point(event), scroll: messages.scrollTop };
 });
 messages.addEventListener("pointermove", (event) => {
-  if (gesture?.pointer === event.pointerId) drawSelection(rectangleTo(pointerPoint(event)));
+  if (captureDrag?.pointer !== event.pointerId) return;
+  const rect = rectangle(point(event));
+  if (Math.hypot(rect.width, rect.height) < 6) return;
+  if (!messages.hasPointerCapture(event.pointerId)) messages.setPointerCapture(event.pointerId);
+  selection.hidden = false;
+  selection.style.left = rect.left + "px";
+  selection.style.top = rect.top + captureDrag.scroll + "px";
+  selection.style.width = rect.width + "px";
+  selection.style.height = rect.height + "px";
 });
 messages.addEventListener("pointerup", (event) => {
-  if (gesture?.pointer !== event.pointerId) return;
-  const chosen = coveredItems(rectangleTo(pointerPoint(event)));
-  gesture = null;
-  selection.hidden = true;
-  submitCapture(chosen);
+  if (captureDrag?.pointer !== event.pointerId) return;
+  const rect = rectangle(point(event));
+  const dragged = messages.hasPointerCapture(event.pointerId) || Math.hypot(rect.width, rect.height) >= 6;
+  captureDrag = null;
+  if (!dragged && event.target.closest("[data-item]")) return;
+  suppressMessageClick = dragged;
+  setTimeout(() => { suppressMessageClick = false; }, 0);
+  captureItems(covered(rect));
 });
-messages.addEventListener("lostpointercapture", () => {
-  gesture = null;
-  selection.hidden = true;
+messages.addEventListener("lostpointercapture", (event) => {
+  if (captureDrag?.pointer === event.pointerId) stopCapture();
+});
+messages.addEventListener("pointercancel", stopCapture);
+
+byId("min-chat").addEventListener("click", () => {
+  showChat(false);
+  byId("chat-app").focus({ preventScroll: true });
+});
+byId("chat-app").addEventListener("click", () => {
+  if (!bench.hidden) showBench(false);
+  showChat(true);
+  if (running) capture.focus({ preventScroll: true });
+});
+tray.addEventListener("click", () => showBench(true));
+tray.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  if (running) openTray();
+});
+byId("tray-shortcut").addEventListener("click", () => {
+  closeTray();
+  showBench(true);
+  showSettings(true);
+  byId("shortcut").focus();
+});
+byId("tray-root").addEventListener("click", () => openFolder());
+byId("tray-exit").addEventListener("click", () => {
+  showBench(false);
+  closeTray();
+  running = false;
+  capture.disabled = tray.disabled = true;
+  byId("reset").focus({ preventScroll: true });
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!trayMenu.hidden && !trayMenu.contains(event.target) && !tray.contains(event.target)) closeTray();
 });
 
-chatButton.addEventListener("click", () => switchView("chat"));
-workbenchButton.addEventListener("click", () => switchView("bench"));
-next.addEventListener("click", () => {
-  switchView("bench");
-  boxes[0].focus({ preventScroll: true });
+byId("min-bench").addEventListener("click", () => showBench(false));
+byId("bench-home").addEventListener("click", () => {
+  closeArchive(false);
+  showSettings(false);
 });
+byId("lens").addEventListener("click", () => setLens(!lensMode));
+byId("archive-lens").addEventListener("click", () => setLens(!lensMode));
+byId("settings").addEventListener("click", () => showSettings(!settingsOpen));
+byId("root-picker").addEventListener("click", () => {
+  if (root) byId("root-choice").value = root;
+  rootDialog.showModal();
+});
+byId("root-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  root = byId("root-choice").value;
+  byId("root-picker").textContent = root;
+  byId("root-folder").disabled = false;
+  rootDialog.close();
+});
+byId("root-folder").addEventListener("click", () => openFolder());
+byId("shortcut").addEventListener("click", () => {
+  listening = true;
+  byId("shortcut").textContent = "按下快捷键";
+});
+byId("warehouse-door").addEventListener("click", () => showSettings(false));
+byId("warehouse-door").addEventListener("pointerdown", (event) => {
+  doorDrag = event.clientY;
+  event.currentTarget.setPointerCapture(event.pointerId);
+});
+byId("warehouse-door").addEventListener("pointerup", (event) => {
+  if (doorDrag !== null && event.clientY < doorDrag - 25) showSettings(false);
+  doorDrag = null;
+});
+byId("theme").addEventListener("click", (event) => {
+  const light = bench.dataset.theme !== "light";
+  bench.dataset.theme = light ? "light" : "dark";
+  event.currentTarget.setAttribute("aria-pressed", String(light));
+  event.currentTarget.lastChild.textContent = light ? " 深色外观" : " 浅色外观";
+});
+
+byId("queue-next").addEventListener("click", () => changeQueue(1));
+byId("queue-prev").addEventListener("click", () => changeQueue(-1));
+byId("box-next").addEventListener("click", () => changeBoxes(1));
+byId("box-prev").addEventListener("click", () => changeBoxes(-1));
+belt.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || event.target.closest("button")) return;
+  beltDrag = { origin: event.clientX, pointer: event.pointerId };
+  belt.setPointerCapture(event.pointerId);
+  belt.classList.add("swiping");
+});
+belt.addEventListener("pointermove", (event) => {
+  if (beltDrag?.pointer !== event.pointerId) return;
+  const offset = Math.max(-115, Math.min(115, event.clientX - beltDrag.origin));
+  belt.style.setProperty("--belt-move", offset + "px");
+  syncLine();
+});
+function endBelt(event, complete) {
+  if (beltDrag?.pointer !== event.pointerId) return;
+  const offset = event.clientX - beltDrag.origin;
+  beltDrag = null;
+  belt.classList.remove("swiping");
+  belt.style.removeProperty("--belt-move");
+  if (complete && Math.abs(offset) >= (bench.clientWidth < 530 ? 60 : 96)) changeBoxes(offset < 0 ? 1 : -1);
+  syncLine();
+}
+belt.addEventListener("pointerup", (event) => endBelt(event, true));
+belt.addEventListener("pointercancel", (event) => endBelt(event, false));
+
 queue.addEventListener("click", (event) => {
   const card = event.target.closest("[data-pending]");
   if (!card) return;
-  queuedSelection = queuedSelection === card.dataset.pending ? null : card.dataset.pending;
-  renderBench();
-  queue.querySelector("[data-pending]").focus({ preventScroll: true });
-  announce(queuedSelection ? "已选回归记录.pdf。请选择一个项目箱。" : "已取消选择文件。");
+  const key = card.dataset.pending;
+  const state = pending.get(key);
+  if (lensMode || state === "missing") {
+    if (state === "missing") announce(labelFor(key) + "尚未下载");
+    showPreview(card);
+  } else if (state === "query" || state === "failed") {
+    beginCopy(key, assignment.get(sourceOf(key)) || "pay");
+    (queue.querySelector("button") || byId("bench-home")).focus({ preventScroll: true });
+  } else {
+    selected = key === selected ? null : key;
+    renderQueue();
+    renderBoxes();
+    queue.querySelector('[data-pending="' + key + '"]')?.focus({ preventScroll: true });
+  }
 });
 queue.addEventListener("dragstart", (event) => {
   const card = event.target.closest("[data-pending]");
-  if (!card) return;
+  if (!card?.draggable) return;
   event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("application/x-snapstow-item", card.dataset.pending);
+  event.dataTransfer.setData(fileMime, card.dataset.pending);
 });
-queue.addEventListener("dragend", () => {
-  for (const box of boxes) box.classList.remove("drop-target");
+queue.addEventListener("dragover", (event) => {
+  const card = event.target.closest("[data-pending]");
+  if (!card || pending.get(card.dataset.pending) !== "conflict" || !event.dataTransfer.types.includes(lineMime)) return;
+  event.preventDefault();
+  card.classList.add("relink-target");
 });
-for (const box of boxes) {
-  box.addEventListener("click", () => {
-    if (queuedSelection) placeInProject(queuedSelection, box);
-    else openArchive(box.dataset.project);
-  });
-  box.addEventListener("dragover", (event) => {
-    if (!event.dataTransfer.types.includes("application/x-snapstow-item")) return;
+queue.addEventListener("dragleave", (event) => event.target.closest("[data-pending]")?.classList.remove("relink-target"));
+queue.addEventListener("drop", (event) => {
+  const card = event.target.closest("[data-pending]");
+  if (!card || pending.get(card.dataset.pending) !== "conflict" || !event.dataTransfer.getData(lineMime)) return;
+  event.preventDefault();
+  conflict.linked = card.dataset.pending;
+  renderQueue();
+});
+cut.addEventListener("dragstart", (event) => {
+  if (!conflict?.linked) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData(lineMime, conflict.linked);
+});
+cut.addEventListener("click", () => {
+  if (!conflict) return;
+  conflict.linked = null;
+  syncLine();
+  queue.querySelector("[data-pending]")?.focus({ preventScroll: true });
+});
+boxes.addEventListener("click", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (!box) return;
+  const key = box.dataset.project;
+  if (selected) {
+    place(selected, key);
+  } else if (event.detail > 0 && event.target.closest("strong")) {
+    clearTimeout(openTimer);
+    openTimer = setTimeout(() => openArchive(key, box), 270);
+  } else {
+    openArchive(key, box);
+  }
+});
+boxes.addEventListener("dblclick", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (box && event.target.closest("strong")) renameProject(box);
+});
+boxes.addEventListener("contextmenu", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (!box) return;
+  event.preventDefault();
+  openFolder(box.dataset.project);
+});
+boxes.addEventListener("keydown", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (box && event.key === "F2") {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    box.classList.add("drop-target");
-  });
-  box.addEventListener("dragleave", (event) => {
-    if (!box.contains(event.relatedTarget)) box.classList.remove("drop-target");
-  });
-  box.addEventListener("drop", (event) => {
-    const key = event.dataTransfer.getData("application/x-snapstow-item");
-    if (!key) return;
-    event.preventDefault();
-    box.classList.remove("drop-target");
-    placeInProject(key, box);
+    renameProject(box);
+  }
+});
+boxes.addEventListener("dragover", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (!box || !event.dataTransfer.types.includes(fileMime)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  box.classList.add("drop-target");
+});
+boxes.addEventListener("dragleave", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (box && !box.contains(event.relatedTarget)) box.classList.remove("drop-target");
+});
+boxes.addEventListener("drop", (event) => {
+  const key = event.dataTransfer.getData(fileMime);
+  const box = event.target.closest("[data-project]");
+  if (!box || !key) return;
+  event.preventDefault();
+  box.classList.remove("drop-target");
+  place(key, box.dataset.project);
+});
+screen.addEventListener("dragend", () => {
+  screen.querySelectorAll(".drop-target, .relink-target, .merge-target").forEach((item) => item.classList.remove("drop-target", "relink-target", "merge-target"));
+  underlay.classList.remove("source-drop");
+});
+
+function closeArchive(restoreFocus = true) {
+  if (!archive.open) return;
+  archive.close();
+  viewing = sourceSelection = null;
+  underlay.hidden = true;
+  underlay.classList.remove("source-drop");
+  board.inert = false;
+  byId("lens").hidden = byId("settings").hidden = false;
+  setLens(false);
+  syncLine();
+  if (!bench.hidden && restoreFocus) {
+    const key = previousFocus?.dataset.project;
+    const trigger = key && boxes.querySelector('[data-project="' + key + '"]');
+    (trigger || byId("bench-home")).focus({ preventScroll: true });
+  }
+  previousFocus = null;
+}
+archive.querySelector("form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  closeArchive();
+});
+archiveContent.addEventListener("click", (event) => {
+  const move = event.target.closest("[data-move-source]");
+  const group = event.target.closest("[data-source]");
+  const item = event.target.closest("[data-archived]");
+  if (move) {
+    moveSource(move.dataset.moveSource);
+  } else if (group && !lensMode) {
+    const key = group.dataset.source;
+    if (sourceSelection && sourceSelection !== key) mergeSources(sourceSelection, key);
+    else {
+      sourceSelection = sourceSelection === key ? null : key;
+      renderArchive();
+      archiveContent.querySelector('[data-source="' + key + '"]')?.focus({ preventScroll: true });
+    }
+  } else if (item || group) {
+    setLens(true);
+    showPreview(item || group);
+  }
+});
+archiveContent.addEventListener("dragstart", (event) => {
+  const group = event.target.closest("[data-source]");
+  if (!group) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData(sourceMime, group.dataset.source);
+  underlay.classList.add("source-drop");
+});
+archiveContent.addEventListener("dragover", (event) => {
+  const group = event.target.closest("[data-source]");
+  if (!group || !event.dataTransfer.types.includes(sourceMime)) return;
+  event.preventDefault();
+  group.classList.add("merge-target");
+});
+archiveContent.addEventListener("dragleave", (event) => event.target.closest("[data-source]")?.classList.remove("merge-target"));
+archiveContent.addEventListener("drop", (event) => {
+  const group = event.target.closest("[data-source]");
+  const source = event.dataTransfer.getData(sourceMime);
+  if (!group || !source) return;
+  event.preventDefault();
+  group.classList.remove("merge-target");
+  underlay.classList.remove("source-drop");
+  mergeSources(source, group.dataset.source);
+});
+underlay.addEventListener("dragover", (event) => {
+  if (event.dataTransfer.types.includes(sourceMime)) event.preventDefault();
+});
+underlay.addEventListener("drop", (event) => {
+  const source = event.dataTransfer.getData(sourceMime);
+  if (!source) return;
+  event.preventDefault();
+  moveSource(source);
+});
+
+const inspectable = "[data-pending], [data-project], [data-archived], [data-source]";
+for (const event of ["pointerover", "focusin"]) {
+  bench.addEventListener(event, (input) => showPreview(input.target.closest(inspectable)));
+}
+for (const event of ["pointerout", "focusout"]) {
+  bench.addEventListener(event, (input) => {
+    const target = input.target.closest(inspectable);
+    if (target && !target.contains(input.relatedTarget)) showPreview();
   });
 }
-
-id("reset").addEventListener("click", () => {
-  archived = new Map();
-  pending = new Map([["review", "待选项目"]]);
-  stopCapture();
-  pick.reset();
-  pick.hidden = true;
-  document.querySelector('[name="scenario"][value="found"]').checked = true;
-  items.forEach((item) => item.classList.remove("marked"));
-  boxes.forEach((box) => box.classList.remove("received", "drop-target"));
-  switchView("chat");
-  announce("已重置演示。");
+document.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || folder.open || rootDialog.open) return;
+  if (event.key === "Escape") {
+    if (!trayMenu.hidden) {
+      closeTray();
+      tray.focus({ preventScroll: true });
+    } else if (captureActive) stopCapture();
+    else if (listening) showSettings(true);
+    else if (lensMode) setLens(false);
+    else if (archive.open) closeArchive();
+    return;
+  }
+  const keys = shortcutFrom(event);
+  if (!keys || event.repeat) return;
+  if (listening) {
+    event.preventDefault();
+    shortcut = keys;
+    capture.setAttribute("aria-keyshortcuts", keys);
+    stopCapture();
+    showSettings(true);
+  } else if (keys === shortcut && running && bench.hidden) {
+    event.preventDefault();
+    startCapture();
+  }
 });
 
-renderBench();
+new ResizeObserver(() => {
+  if (bench.hidden || settingsOpen || archive.open) return;
+  if (pageSize() !== lastQueueSize) renderQueue();
+  else syncLine();
+}).observe(bench);
+byId("reset").addEventListener("click", reset);
+resetState();
+stopCapture();
+renderChat();
