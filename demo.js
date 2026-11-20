@@ -465,10 +465,14 @@ function renderArchive() {
     section.append(card);
 
     const actions = node("div", "group-actions");
-    const move = node("button", "group-move", "移出来源");
+    const move = node("button", "icon-control group-move");
     move.type = "button";
     move.dataset.moveSource = source;
     move.setAttribute("aria-label", "移出" + names[source]);
+    move.title = "移出来源";
+    const arrow = node("span", "", "↗");
+    arrow.setAttribute("aria-hidden", "true");
+    move.append(arrow);
     actions.append(move);
     section.append(actions);
 
@@ -647,7 +651,7 @@ function reset() {
   tray.disabled = capture.disabled = false;
   showBench(false);
   bench.dataset.theme = "dark";
-  byId("theme").lastChild.textContent = " 浅色外观";
+  byId("theme").title = "切换为浅色外观";
   byId("theme").setAttribute("aria-pressed", "false");
   showSettings(false);
   showChat(true);
@@ -655,6 +659,7 @@ function reset() {
   capture.setAttribute("aria-keyshortcuts", shortcut);
   byId("reply").value = "";
   renderChat();
+  capture.focus({ preventScroll: true });
 }
 
 capture.addEventListener("click", () => captureActive ? stopCapture() : startCapture());
@@ -780,7 +785,7 @@ byId("theme").addEventListener("click", (event) => {
   const light = bench.dataset.theme !== "light";
   bench.dataset.theme = light ? "light" : "dark";
   event.currentTarget.setAttribute("aria-pressed", String(light));
-  event.currentTarget.lastChild.textContent = light ? " 深色外观" : " 浅色外观";
+  event.currentTarget.title = light ? "切换为深色外观" : "切换为浅色外观";
 });
 
 byId("queue-next").addEventListener("click", () => changeQueue(1));
