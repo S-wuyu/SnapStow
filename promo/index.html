@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#22252c">
+  <meta name="description" content="圈收 SnapStow 是一款为 Windows 设计的项目资料归档工具。试试从群聊圈选附件和链接，再到项目箱里找到它们。">
+  <title>圈收 SnapStow · 圈一下，松手继续工作</title>
+  <link rel="icon" href="./snapstow.png">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./demo.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <header class="site-head wrap">
+    <a class="brand" href="./" aria-label="圈收 SnapStow 首页">
+      <img src="./snapstow.png" alt="" width="44" height="44">
+      <span><strong>圈收</strong><small>SnapStow</small></span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="#try">在线体验</a>
+      <a href="#how">工作方式</a>
+      <a class="repo" href="https://github.com/S-wuyu/SnapStow">GitHub ↗</a>
+    </nav>
+  </header>
+  <main id="main" tabindex="-1">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="label"><span class="live-dot"></span> Windows 桌面 · v0.1 开发中</p>
+        <h1 id="hero-title">圈一下，<br><em>松手继续工作。</em></h1>
+        <p class="lede">在群聊里圈中想留的附件、链接和备注。圈收在后台把它们归到对应项目，等你需要时再开箱。</p>
+        <a class="button primary" href="#try">亲手圈一次 <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-selection"><i></i><i></i><i></i><i></i></div>
+        <div class="art-backplate"></div>
+        <img class="hero-box" src="./snapstow.png" alt="">
+        <span class="art-slip"><i></i>验收清单.xlsx</span>
+        <div class="art-caption"><span></span> 支付改版 / 项目箱</div>
+      </div>
+    </section>
+
+    <section class="experience" id="try" aria-labelledby="try-title">
+      <div class="wrap">
+        <div class="section-title">
+          <div>
+            <p class="label">在线体验</p>
+            <h2 id="try-title">从群聊到项目箱</h2>
+          </div>
+          <p>用示例聊天操作一遍。演示在浏览器内运行。</p>
+        </div>
+        <noscript><p class="noscript">请启用 JavaScript 以操作演示。</p></noscript>
+        <div class="sim">
+          <div class="sim-top">
+            <span class="sim-name"><i></i> SnapStow 体验台</span>
+            <div class="view-switch" role="group" aria-label="演示窗口">
+              <button type="button" id="show-chat" aria-pressed="true" aria-controls="chat-panel">群聊</button>
+              <button type="button" id="show-workbench" aria-pressed="false" aria-controls="workbench-panel">工作台</button>
+            </div>
+            <button type="button" class="text-button" id="reset">重来</button>
+          </div>
+          <div class="sim-grid">
+            <aside class="guide" aria-labelledby="guide-title">
+              <ol class="steps" aria-label="演示步骤">
+                <li aria-current="step"><span>01</span> 圈选</li>
+                <li><span>02</span> 归档</li>
+                <li><span>03</span> 开箱</li>
+              </ol>
+              <h3 id="guide-title">框住要留的消息</h3>
+              <p id="guide-copy">点「开始圈选」，在聊天中拖一个方框。也可以用「点选资料」完成圈选。</p>
+              <div class="guide-actions">
+                <button class="button primary" type="button" id="capture">开始圈选 <span aria-hidden="true">＋</span></button>
+                <button class="text-button" type="button" id="quick">点选资料</button>
+                <button class="button primary" type="button" id="next" hidden>打开工作台 <span aria-hidden="true">→</span></button>
+              </div>
+              <fieldset class="scenario">
+                <legend>附件场景</legend>
+                <label><input type="radio" name="scenario" value="found" checked> 原件已下载</label>
+                <label><input type="radio" name="scenario" value="missing"> 本地未找到</label>
+              </fieldset>
+            </aside>
+            <div class="workspace">
+              <div id="chat-panel" class="chat">
+                <div class="chat-heading"><span class="chat-icon" aria-hidden="true">研</span><div><strong>支付改版研发群</strong><small>示例聊天</small></div></div>
+                <div id="messages" class="messages">
+                  <p class="chat-time">今天 10:24</p>
+                  <p class="sender">林一</p>
+                  <p class="bubble context item" data-item="note">这周用下面这版清单验收。</p>
+                  <div class="message-items">
+                    <div class="bubble item file-message" data-item="sheet">
+                      <span class="file-icon" aria-hidden="true">X</span><div><strong>验收清单.xlsx</strong><small>48 KB · Excel 工作簿</small></div>
+                    </div>
+                    <div class="bubble item link-message" data-item="link">
+                      <span class="link-icon" aria-hidden="true">↗</span><div><strong>测试环境</strong><small>https://pay.example.com/staging</small></div>
+                    </div>
+                  </div>
+                  <div class="selection" id="selection" hidden></div>
+                </div>
+                <form class="pick-panel" id="pick-panel" hidden>
+                  <fieldset>
+                    <legend>选择要圈收的资料</legend>
+                    <label><input type="checkbox" name="item" value="sheet" checked> 验收清单.xlsx</label>
+                    <label><input type="checkbox" name="item" value="link" checked> 测试环境</label>
+                    <label><input type="checkbox" name="item" value="note"> 验收备注</label>
+                  </fieldset>
+                  <button class="button primary" type="submit">确认圈收</button>
+                  <button class="text-button" type="button" id="cancel-pick">取消</button>
+                </form>
+                <div class="panel-foot"><span id="capture-hint">可圈收附件、链接和备注。</span><button class="text-button" type="button" id="cancel-capture" hidden>退出圈选</button></div>
+              </div>
+              <div id="workbench-panel" class="workbench" hidden>
+                <div class="chat-heading"><img src="./snapstow.png" alt="" width="42" height="42"><div><strong>圈收工作台</strong><small>示例项目</small></div></div>
+                <div class="bench-content">
+                  <div class="queue">
+                    <h4>待处理 <span id="queue-count"></span></h4>
+                    <div id="queue-items" class="queue-items"></div>
+                  </div>
+                  <div class="projects">
+                    <h4>项目箱</h4>
+                    <div class="conveyor" id="boxes">
+                      <button type="button" class="project" data-project="pay" aria-label="打开支付改版项目箱">
+                        <span class="package" aria-hidden="true"><i></i><span>支付改版</span></span>
+                        <span class="box-count" id="pay-count"></span>
+                      </button>
+                      <button type="button" class="project" data-project="portal" aria-label="打开官网更新项目箱">
+                        <span class="package" aria-hidden="true"><i></i><span>官网更新</span></span>
+                        <span class="box-count" id="portal-count"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="panel-foot" id="bench-hint">点击项目箱查看归档内容。待确认文件可拖入箱子，也可依次点选文件和箱子。</div>
+              </div>
+            </div>
+          </div>
+          <p class="sim-status" id="status" role="status" aria-atomic="true"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how wrap" id="how" aria-labelledby="how-title">
+      <p class="label">工作方式</p>
+      <h2 id="how-title">一次圈选，<br>省掉归档的几步。</h2>
+      <div class="principles">
+        <article><span class="detail-icon crop" aria-hidden="true"></span><h3>只圈想留的</h3><p>附件、网址和备注可以同框圈选。松手后，圈选层立即关闭。</p></article>
+        <article><span class="detail-icon arrow" aria-hidden="true">↘</span><h3>后台按项目收好</h3><p>按群聊识别项目，查找已下载的本地附件，整理同框的链接和备注。</p></article>
+        <article><span class="detail-icon box" aria-hidden="true"></span><h3>用到时再开箱</h3><p>回看资料来自哪个群。碰到同名文件或归属不明的资料，再到工作台确认。</p></article>
+      </div>
+    </section>
+    <section class="closing wrap" aria-labelledby="closing-title">
+      <div><p class="label">Windows 桌面</p><h2 id="closing-title">文件留在你的电脑上。</h2><p>圈收计划以免费 Windows 便携包发布。首版仍在开发。</p></div>
+      <a class="button outline" href="https://github.com/S-wuyu/SnapStow">查看项目进展 ↗</a>
+    </section>
+  </main>
+  <footer class="wrap site-footer"><a class="brand" href="./"><img src="./snapstow.png" alt="" width="34" height="34"><span>圈收 SnapStow</span></a><a href="#try">再试一次 ↑</a></footer>
+
+  <dialog id="archive" aria-labelledby="archive-title">
+    <div class="archive-head"><div><p class="label">项目箱</p><h3 id="archive-title"></h3></div><form method="dialog"><button class="icon-button" aria-label="关闭项目箱" autofocus>×</button></form></div>
+    <div id="archive-content"></div>
+  </dialog>
+</body>
+</html>
