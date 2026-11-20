@@ -7,7 +7,7 @@
 - Read the [technical architecture](docs/technical/architecture.md) and follow the [technical instructions](docs/technical/AGENTS.md) when evaluating or changing the stack, system boundaries, storage, or recovery behavior, including work requested from the project root.
 - SnapStow v0.1 targets Windows desktop. Use PowerShell for commands in the current Windows workspace and keep project paths relative to this root.
 - The Windows application is in the documentation stage. Its implementation stack, entry point, and test commands are pending.
-- The promotional site lives in `promo/` and is separate from the Windows application. It uses static HTML, CSS, and JavaScript with synthetic sample data. Run `python -m http.server 8765 --bind 127.0.0.1 --directory promo` to preview it locally and `node --check promo/demo.js` to check JavaScript syntax. Use an isolated browser to verify capture, missing attachments, project assignment, and archive details.
+- The promotional site lives in `promo/` and is separate from the Windows application. Its first screen is a clickable Windows desktop simulation with synthetic sample data. Guide discovery through visible controls, interaction states, and the product's existing Figma visuals. Run `python -m http.server 8765 --bind 127.0.0.1 --directory promo` to preview it locally and `node --check promo/demo.js` to check JavaScript syntax. Use an isolated browser to verify capture, immediate return, tray activation, project assignment, and archive details on wide and narrow screens.
 
 ## Working agreements
 
