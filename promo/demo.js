@@ -13,6 +13,7 @@ const queue = byId("queue");
 const board = byId("board");
 const belt = byId("belt");
 const boxes = byId("boxes");
+const dropBin = byId("drop-bin");
 const archive = byId("archive");
 const archiveContent = byId("archive-content");
 const underlay = byId("archive-underlay");
@@ -44,7 +45,6 @@ const fixtures = {
 };
 const rank = { conflict: 0, choose: 1, source: 1, missing: 2, query: 3, failed: 4 };
 const stateLabels = { choose: "待选项目", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
-const fileMime = "application/x-snapstow-file";
 const sourceMime = "application/x-snapstow-source";
 const lineMime = "application/x-snapstow-connection";
 const copying = new Map();
@@ -59,6 +59,7 @@ let running = true;
 let captureActive = false;
 let captureDrag = null;
 let beltDrag = null;
+let fileDrag = null;
 let doorDrag = null;
 let suppressMessageClick = false;
 let previousFocus;
@@ -212,11 +213,19 @@ function covered(rect) {
 }
 
 function pageSize() {
-  return bench.clientWidth <= 530 ? 2 : 3;
+  return Number(getComputedStyle(queue).getPropertyValue("--queue-size"));
 }
 
 function labelFor(key) {
   return key.startsWith("source:") ? names[sourceOf(key)] : fixtures[key].name;
+}
+
+function canDiscard(key) {
+  return pending.has(key) && pending.get(key) !== "source";
+}
+
+function canPlace(key) {
+  return ["source", "choose", "conflict"].includes(pending.get(key));
 }
 
 function fileCard(key, state, inArchive = false) {
@@ -232,9 +241,9 @@ function fileCard(key, state, inArchive = false) {
   } else if (singleState) {
     button.append(node("span", "file-state", singleState));
   }
-  if (!inArchive && ["conflict", "choose", "source"].includes(state)) {
-    button.draggable = true;
-    button.setAttribute("aria-pressed", String(selected === key));
+  if (!inArchive) {
+    if (canPlace(key)) button.setAttribute("aria-pressed", String(selected === key));
+    if (canDiscard(key)) button.setAttribute("aria-keyshortcuts", "Delete");
   }
   if (key === "old" && state === "conflict") singleState = "同名冲突，已有归档";
   if (key === "new" && state === "conflict") singleState = "同名冲突，新收到";
@@ -249,6 +258,21 @@ function fileCard(key, state, inArchive = false) {
   return button;
 }
 
+const queueFeatures = [
+  ["圈选群聊资料", null],
+  ["按项目收好", "parcel"],
+  ["开箱回看来源", "checklist"],
+];
+
+function queueFeature(index) {
+  const [label, asset] = queueFeatures[index];
+  const tile = node("div", "file-card feature-card");
+  const icon = asset ? art(asset) : node("i", "capture-glyph");
+  icon.setAttribute("aria-hidden", "true");
+  tile.append(icon, node("strong", "", label));
+  return tile;
+}
+
 function renderQueue() {
   const focus = document.activeElement?.dataset.pending;
   const size = pageSize();
@@ -256,7 +280,11 @@ function renderQueue() {
   const keys = [...pending.keys()].sort((a, b) => rank[pending.get(a)] - rank[pending.get(b)]);
   const last = Math.max(0, Math.ceil(keys.length / size) - 1);
   queuePage = Math.min(queuePage, last);
-  queue.replaceChildren(...keys.slice(queuePage * size, (queuePage + 1) * size).map((key) => fileCard(key, pending.get(key))));
+  const page = keys.slice(queuePage * size, (queuePage + 1) * size);
+  queue.replaceChildren(
+    ...page.map((key) => fileCard(key, pending.get(key))),
+    ...queueFeatures.slice(0, size - page.length).map((_, index) => queueFeature(index))
+  );
   byId("queue-prev").disabled = queuePage === 0;
   byId("queue-next").disabled = queuePage === last;
   if (focus) queue.querySelector('[data-pending="' + focus + '"]')?.focus({ preventScroll: true });
@@ -278,8 +306,6 @@ function renderBoxes() {
     box.append(art("parcel-glow", "parcel-glow"), art("parcel", "parcel"), art("parcel-label", "parcel-label"), node("strong", "", name));
     boxes.append(box);
   }
-  byId("box-prev").disabled = boxPage === 0;
-  byId("box-next").disabled = (boxPage + 1) * 2 >= keys.length;
   syncCopyBadges();
   if (focus) boxes.querySelector('[data-project="' + focus + '"]')?.focus({ preventScroll: true });
   syncLine();
@@ -324,7 +350,10 @@ function renderBench() {
 function showBench(open) {
   if (!running) return;
   closeTray();
-  if (!open) closeArchive(false);
+  if (!open) {
+    closeArchive(false);
+    clearFileDrag();
+  }
   stopCapture();
   bench.hidden = !open;
   tray.setAttribute("aria-expanded", String(open));
@@ -375,7 +404,7 @@ function newName(key, project) {
 
 function place(key, project) {
   const state = pending.get(key);
-  if (!["source", "choose", "conflict"].includes(state)) return;
+  if (!canPlace(key)) return;
   let operation = null;
   if (state === "source") {
     const source = sourceOf(key);
@@ -416,6 +445,22 @@ function place(key, project) {
   boxes.querySelector('[data-project="' + project + '"]')?.focus({ preventScroll: true });
 }
 
+function discard(key) {
+  if (!canDiscard(key)) return;
+  const focused = document.activeElement?.dataset.pending === key;
+  if (pending.get(key) === "conflict") {
+    if (key === "new") pending.delete("old");
+    else if (pending.has("new")) pending.set("new", "choose");
+    conflict = null;
+    selected = null;
+  }
+  pending.delete(key);
+  if (selected === key) selected = null;
+  renderBench();
+  if (focused) (queue.querySelector("button") || byId("bench-home")).focus({ preventScroll: true });
+  announce("已移除 " + labelFor(key));
+}
+
 function changeQueue(direction) {
   const trigger = document.activeElement;
   queuePage += direction;
@@ -427,10 +472,10 @@ function changeQueue(direction) {
 }
 
 function changeBoxes(direction) {
-  const trigger = document.activeElement;
-  boxPage = Math.max(0, Math.min(Math.ceil(projects.size / 2) - 1, boxPage + direction));
+  const next = Math.max(0, Math.min(Math.ceil(projects.size / 2) - 1, boxPage + direction));
+  if (boxPage === next) return;
+  boxPage = next;
   renderBoxes();
-  if (trigger?.disabled) byId(direction > 0 ? "box-prev" : "box-next").focus({ preventScroll: true });
   showPreview();
 }
 
@@ -561,6 +606,10 @@ function showPreview(target) {
 
 function showSettings(open) {
   if (archive.open) return;
+  if (open) {
+    clearFileDrag();
+    announce();
+  }
   settingsOpen = open;
   listening = false;
   setLens(false);
@@ -790,31 +839,122 @@ byId("theme").addEventListener("click", (event) => {
 
 byId("queue-next").addEventListener("click", () => changeQueue(1));
 byId("queue-prev").addEventListener("click", () => changeQueue(-1));
-byId("box-next").addEventListener("click", () => changeBoxes(1));
-byId("box-prev").addEventListener("click", () => changeBoxes(-1));
 belt.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0 || event.target.closest("button")) return;
-  beltDrag = { origin: event.clientX, pointer: event.pointerId };
-  belt.setPointerCapture(event.pointerId);
-  belt.classList.add("swiping");
+  if (event.button !== 0 || !event.isPrimary || beltDrag || fileDrag || event.target.closest("input")) return;
+  if (event.pointerType === "mouse" && !event.target.closest("button")) event.preventDefault();
+  beltDrag = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
 });
 belt.addEventListener("pointermove", (event) => {
   if (beltDrag?.pointer !== event.pointerId) return;
-  const offset = Math.max(-115, Math.min(115, event.clientX - beltDrag.origin));
+  const distance = event.clientX - beltDrag.x;
+  if (!belt.classList.contains("swiping")) {
+    if (Math.abs(distance) < 6 || Math.abs(distance) < Math.abs(event.clientY - beltDrag.y)) return;
+    belt.setPointerCapture(event.pointerId);
+    belt.classList.add("swiping");
+  }
+  const offset = Math.max(-115, Math.min(115, distance));
   belt.style.setProperty("--belt-move", offset + "px");
   syncLine();
 });
 function endBelt(event, complete) {
   if (beltDrag?.pointer !== event.pointerId) return;
-  const offset = event.clientX - beltDrag.origin;
+  const offset = event.clientX - beltDrag.x;
+  const swiping = belt.classList.contains("swiping");
   beltDrag = null;
   belt.classList.remove("swiping");
   belt.style.removeProperty("--belt-move");
-  if (complete && Math.abs(offset) >= (bench.clientWidth < 530 ? 60 : 96)) changeBoxes(offset < 0 ? 1 : -1);
+  if (complete && swiping && Math.abs(offset) >= (pageSize() === 2 ? 60 : 96)) changeBoxes(offset < 0 ? 1 : -1);
   syncLine();
 }
 belt.addEventListener("pointerup", (event) => endBelt(event, true));
 belt.addEventListener("pointercancel", (event) => endBelt(event, false));
+belt.addEventListener("pointerleave", (event) => {
+  if (!belt.hasPointerCapture(event.pointerId)) endBelt(event, false);
+});
+belt.addEventListener("lostpointercapture", (event) => {
+  if (event.target === belt) endBelt(event, false);
+});
+belt.addEventListener("keydown", (event) => {
+  if (event.target !== belt || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+  event.preventDefault();
+  changeBoxes(event.key === "ArrowRight" ? 1 : -1);
+});
+
+queue.addEventListener("pointerdown", (event) => {
+  const card = event.target.closest("[data-pending]");
+  if (!card || event.button !== 0 || !event.isPrimary || fileDrag || beltDrag) return;
+  const rect = card.getBoundingClientRect();
+  fileDrag = { card, key: card.dataset.pending, pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
+});
+
+function updateFileDropTarget(drag, event) {
+  const target = document.elementFromPoint(event.clientX, event.clientY);
+  const project = target?.closest("[data-project]");
+  const next = project && canPlace(drag.key) ? project : null;
+  if (drag.project !== next) {
+    drag.project?.classList.remove("drop-target");
+    next?.classList.add("drop-target");
+    drag.project = next;
+  }
+  dropBin.toggleAttribute("data-hit", !dropBin.hidden && target === dropBin);
+}
+
+function clearFileDrag() {
+  if (!fileDrag) return;
+  fileDrag.card.classList.remove("drag-origin");
+  fileDrag.project?.classList.remove("drop-target");
+  fileDrag.ghost?.remove();
+  dropBin.hidden = true;
+  dropBin.removeAttribute("data-hit");
+  fileDrag = null;
+}
+
+document.addEventListener("pointermove", (event) => {
+  const drag = fileDrag;
+  if (drag?.pointer !== event.pointerId) return;
+  if (!drag.ghost) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
+    queue.setPointerCapture(event.pointerId);
+    drag.ghost = node("div", "file-card drag-ghost");
+    drag.ghost.setAttribute("aria-hidden", "true");
+    drag.ghost.replaceChildren(...[...drag.card.children].map((child) => child.cloneNode(true)));
+    drag.ghost.style.width = drag.rect.width + "px";
+    drag.ghost.style.height = drag.rect.height + "px";
+    drag.scale = Math.min(.8, 110 / drag.rect.width);
+    drag.ghost.style.scale = drag.scale;
+    board.append(drag.ghost);
+    drag.card.classList.add("drag-origin");
+    dropBin.hidden = !canDiscard(drag.key);
+    showPreview();
+  }
+  updateFileDropTarget(drag, event);
+  const bounds = board.getBoundingClientRect();
+  const hit = dropBin.hasAttribute("data-hit") && dropBin.getBoundingClientRect();
+  const left = hit ? hit.left - drag.rect.width * drag.scale - 6 : event.clientX - (drag.x - drag.rect.left) * drag.scale;
+  const ghostHeight = drag.rect.height * drag.scale;
+  const top = hit
+    ? Math.min(hit.top + (hit.height - ghostHeight) / 2, bounds.bottom - ghostHeight - 4)
+    : event.clientY - (drag.y - drag.rect.top) * drag.scale;
+  drag.ghost.style.translate = (left - bounds.left) + "px " + (top - bounds.top) + "px";
+});
+
+document.addEventListener("pointerup", (event) => {
+  const drag = fileDrag;
+  if (drag?.pointer !== event.pointerId) return;
+  if (drag.ghost) updateFileDropTarget(drag, event);
+  const remove = dropBin.hasAttribute("data-hit");
+  clearFileDrag();
+  if (remove) discard(drag.key);
+  else if (drag.project) place(drag.key, drag.project.dataset.project);
+});
+
+for (const type of ["pointercancel", "lostpointercapture"]) {
+  document.addEventListener(type, (event) => {
+    if (fileDrag?.pointer !== event.pointerId) return;
+    if (event.type === "lostpointercapture" && queue.hasPointerCapture(event.pointerId)) return;
+    clearFileDrag();
+  });
+}
 
 queue.addEventListener("click", (event) => {
   const card = event.target.closest("[data-pending]");
@@ -834,11 +974,11 @@ queue.addEventListener("click", (event) => {
     queue.querySelector('[data-pending="' + key + '"]')?.focus({ preventScroll: true });
   }
 });
-queue.addEventListener("dragstart", (event) => {
+queue.addEventListener("keydown", (event) => {
   const card = event.target.closest("[data-pending]");
-  if (!card?.draggable) return;
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData(fileMime, card.dataset.pending);
+  if (event.key !== "Delete" || event.repeat || !card || !canDiscard(card.dataset.pending)) return;
+  event.preventDefault();
+  discard(card.dataset.pending);
 });
 queue.addEventListener("dragover", (event) => {
   const card = event.target.closest("[data-pending]");
@@ -894,25 +1034,6 @@ boxes.addEventListener("keydown", (event) => {
     event.preventDefault();
     renameProject(box);
   }
-});
-boxes.addEventListener("dragover", (event) => {
-  const box = event.target.closest("[data-project]");
-  if (!box || !event.dataTransfer.types.includes(fileMime)) return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect = "move";
-  box.classList.add("drop-target");
-});
-boxes.addEventListener("dragleave", (event) => {
-  const box = event.target.closest("[data-project]");
-  if (box && !box.contains(event.relatedTarget)) box.classList.remove("drop-target");
-});
-boxes.addEventListener("drop", (event) => {
-  const key = event.dataTransfer.getData(fileMime);
-  const box = event.target.closest("[data-project]");
-  if (!box || !key) return;
-  event.preventDefault();
-  box.classList.remove("drop-target");
-  place(key, box.dataset.project);
 });
 screen.addEventListener("dragend", () => {
   screen.querySelectorAll(".drop-target, .relink-target, .merge-target").forEach((item) => item.classList.remove("drop-target", "relink-target", "merge-target"));
@@ -1005,7 +1126,8 @@ for (const event of ["pointerout", "focusout"]) {
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || folder.open || rootDialog.open) return;
   if (event.key === "Escape") {
-    if (!trayMenu.hidden) {
+    if (fileDrag) clearFileDrag();
+    else if (!trayMenu.hidden) {
       closeTray();
       tray.focus({ preventScroll: true });
     } else if (captureActive) stopCapture();

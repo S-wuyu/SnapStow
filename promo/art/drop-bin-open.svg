@@ -1,0 +1,26 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="76" height="82" viewBox="0 0 76 82" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="&#232;&#174;&#190;&#229;&#164;&#135;&#230;&#143;&#146;&#231;&#148;&#187; &#194;&#183; &#229;&#188;&#128;&#231;&#155;&#150;">
+<path id="Vector" opacity="0.26" d="M39 80C55.5685 80 69 78.2091 69 76C69 73.7909 55.5685 72 39 72C22.4315 72 9 73.7909 9 76C9 78.2091 22.4315 80 39 80Z" fill="#161C26"/>
+<path id="rear-wheel" d="M61 61C65 60 67 62 67 66C67 70 65 73 62 74L58 75V64L61 61Z" fill="#27333F" stroke-width="1.1" stroke="#53667C"/>
+<path id="steel-body" d="M13 29L48 31L65 22L61 63L47 72L17 68L13 29Z" fill="#778AA5" stroke-width="1.45" stroke-linejoin="round" stroke="#566C8A"/>
+<path id="right-side" d="M48 31L65 22L61 63L47 72L48 31Z" fill="#526A87" stroke-width="1.2" stroke-linejoin="round" stroke="#495E78"/>
+<g id="reinforcement">
+<path d="M19 42L20.8 60ZM28 43L29.3 62ZM37.5 44L38.1 63Z" fill="black"/>
+<path d="M19 42L20.8 60M28 43L29.3 62M37.5 44L38.1 63" stroke-width="2" stroke-linecap="round" stroke="#526982"/>
+</g>
+<g id="ribs-light" opacity="0.65">
+<path d="M21.7 42.5L23.2 58.5ZM30.6 43.5L31.5 60.5ZM39.6 44.5L40 62.5Z" fill="black"/>
+<path d="M21.7 42.5L23.2 58.5M30.6 43.5L31.5 60.5M39.6 44.5L40 62.5" stroke-linecap="round" stroke="#A5B4CA"/>
+</g>
+<path id="lower-flange" d="M16 65L47 70L61 61L60.6 64.6L46.8 73.3L16.8 68.6L16 65Z" fill="#596F8A"/>
+<path id="front-wheel" d="M27.5 77.4C30.5928 77.4 33.1 74.8928 33.1 71.8C33.1 68.7072 30.5928 66.2 27.5 66.2C24.4072 66.2 21.9 68.7072 21.9 71.8C21.9 74.8928 24.4072 77.4 27.5 77.4Z" fill="#27333F" stroke-width="1.05" stroke="#52677C"/>
+<path id="Vector_2" d="M27.5 73.9C28.6598 73.9 29.6 72.9598 29.6 71.8C29.6 70.6402 28.6598 69.7 27.5 69.7C26.3402 69.7 25.4 70.6402 25.4 71.8C25.4 72.9598 26.3402 73.9 27.5 73.9Z" fill="#8295AB"/>
+<path id="Vector_3" d="M55 46V52L60 49L60.4 43.6L55 46Z" fill="#6E85A0" stroke-width="0.8" stroke="#415770"/>
+<path id="open-lid" d="M22 27L21 9L61 4L65 19L48 32L22 27Z" fill="#AABCD1" stroke-width="1.45" stroke-linejoin="round" stroke="#687F9C"/>
+<path id="lid-fold" d="M22 27L21 9L25 12L26 26L47 30L61 20L65 19L48 32L22 27Z" fill="#738BA7"/>
+<path id="lid-handle" d="M32 12L44 10.7L46 13L34 14.4L32 12Z" fill="#617890"/>
+<path id="opening" d="M10 30L24 23L66 19L49 34L10 30Z" fill="#273443" stroke-width="1.15" stroke-linejoin="round" stroke="#46576E"/>
+<path id="rim" d="M10 30L49 34L66 19" fill="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#E5C282"/>
+<path id="Vector_4" d="M10.5 32.4L48.5 36.4L65.7 21.5" fill="black" stroke-linecap="round" stroke="#60748F"/>
+</g>
+</svg>

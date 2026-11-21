@@ -13,13 +13,13 @@
 
 | 入口 | 怎么体验 |
 | --- | --- |
-| [流水线与双分页](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-2&starting-point-node-id=108%3A2) | 点击上排左侧键看失败文件，再用右侧键回到冲突页。横拖下方斜向传送带，包裹沿带面移动，另一组箱子从对侧进入。 |
+| [工作台与待处理文件移除](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7807&starting-point-node-id=204%3A7807) · [双分页专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-2&starting-point-node-id=108%3A2) | 沿侧面刻印方向横拖传送带翻页。拖文件到垃圾桶移除。专项演示可用上排侧键切到失败文件页。 |
 | [拖文件入箱](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-709&starting-point-node-id=108%3A709) | 拖「验收清单.xlsx」观察箱体在投放过程中亮起，入箱后短暂保留微光。 |
 | [首页同名冲突](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-1718&starting-point-node-id=108%3A1718) | 点击横向短虚线剪断连接，直接拖原虚线改接。可保持连线拖入新件，也可放回已连线的文件。 |
 | [开箱与群清单](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-101&starting-point-node-id=108%3A101) · [单群连线](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-249&starting-point-node-id=108%3A249) | 滚轮查看后续资料。原型中拖研发来源演示移出，拖反馈来源演示箱内合并。 |
 | [合并失败回弹](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-3220&starting-point-node-id=108%3A3220) | 拖一张清单，观察连线弯曲、纸张交叠，再弹回各自位置。 |
 | [放大镜](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-999&starting-point-node-id=108%3A999) | 悬浮文件查看来源，悬浮首屏项目箱查看创建时间、包含数量和大小。开箱后使用浮层顶栏的放大镜查看资料原图。 |
-| [仓库设置](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-502&starting-point-node-id=108%3A502) · [占用涂鸦](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=126-4492&starting-point-node-id=126%3A4492) | 点木质牌匾模拟选目录。旁边的文件夹图标打开资源管理器样稿。点设置图标或主标题返回，也可向上拖卷帘门。 |
+| [仓库日月挂签](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=216-6627&starting-point-node-id=216%3A6627) · [目录选择专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-502&starting-point-node-id=108%3A502) · [占用涂鸦](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=126-4492&starting-point-node-id=126%3A4492) | 点左下角的日月挂签切换外观。点木质牌匾模拟选目录，旁边的文件夹图标打开资源管理器样稿。点设置图标或主标题返回，也可向上拖卷帘门。 |
 | [封箱与复制](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=124-3345&starting-point-node-id=124%3A3345) · [失败退回](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=125-6623&starting-point-node-id=125%3A6623) | 观察封条沿箱盖贴合到箱身。点击包裹查看文件复制进度。失败样例退回上排后页，并标出来源项目。 |
 | [浅色宽窗](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=108-610) · [440 DIP 窄窗](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=111-1577) | 核对文件卡、角标对齐和包裹在缩放后的可读性。 |
 | [窄窗长名称](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=167-5718) | 查看箱面标签中的两行末尾省略效果。 |
@@ -123,6 +123,25 @@ Figma 术语见官方的[原型交互](https://help.figma.com/hc/en-us/articles/
 
 [打开 Windows 模拟桌面](https://s-wuyu.github.io/SnapStow/#try)
 
-页面直接打开模拟桌面。群聊右上角保留圈选图标，任务栏用圈收应用图标打开工作台。桌面右上角是重置和 GitHub 图标。图标入口共用控件样式及悬停、焦点和按下状态。圈选状态用窗口边框、准星和选框呈现。松手后回到原聊天，归档状态在用户打开工作台后显示。工作台复用 Figma 的文件、箱体、封条、滚筒、采购清单和仓库立面图形。窄屏上排每页两件，项目箱可通过传送带拖动或分页按钮切换。
+页面直接打开模拟桌面。群聊右上角保留圈选图标，任务栏用圈收应用图标打开工作台。桌面右上角是重置和 GitHub 图标。图标入口共用控件样式及悬停、焦点和按下状态。圈选状态用窗口边框、准星和选框呈现。松手后回到原聊天，归档状态在用户打开工作台后显示。工作台复用 Figma 的文件、箱体、封条、滚筒、采购清单和仓库立面图形。上排保留固定卡位，宽屏每页三格，窄屏两格。空位用圈选框、项目箱或清单搭配短标签展示产品流程。下排可横拖翻页，聚焦传送带后也可按左右键。
 
 网页以合成内容和浏览器内状态演示归档。托盘、快捷键、目录选择和资源管理器均为模拟控件。Windows 原型另行验收系统集成、截图识别和磁盘写入。
+
+已用 Ego 核对宽屏鼠标圈选、归档、拖放移除和取消，以及 390 像素窄屏的触屏滑动、投放和外观切换。触屏通过浏览器模拟。
+
+## 11. 传送带滑动提示与待处理件删除
+
+[Figma 状态板](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7806) · [播放交互](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7807&starting-point-node-id=204%3A7807)
+
+- 左右箭头分别印在机架朝向用户的长侧面两端，提示横向滑动。箭头是静态图层。横拖传送带可翻动项目箱，下排操作不改变上排页码。拖动时仅移动传送带和箱列，保持画面无浏览器选区或投放高亮。
+- 拖起上排待处理文件时，传送带右下方空位出现带盖和滚轮的蓝灰色垃圾桶。宽窗图形范围为 76 × 82 DIP，窄窗按比例缩放至约 66 × 71 DIP。桶盖在命中时掀开，桶口亮暖金边。松手命中立即移除条目并收起垃圾桶。拖出目标、落空或按 Esc 时保留原条目。Figma 用拖起文件和点击垃圾桶两步模拟同一次拖放。
+- 直接移除待处理条目，用户可以重新圈选识别。下载原件、历史归档和待迁群清单保留。Figma 核对了深浅状态、440 DIP 窄窗，以及删除后继续翻页的结果。
+
+网页支持鼠标和触屏拖放。键盘聚焦待处理文件后可按 Delete 移除。放弃同名新件时，已有归档的引用也从待处理区收起。移除旧件的引用时，新件留在待处理区等待选择项目。
+
+## 12. 仓库日月挂签
+
+[Figma 状态板](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=216-6626) · [播放浅深切换](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=216-6627&starting-point-node-id=216%3A6627)
+
+- 位置为仓库左下原纸箱处。用一枚钉和两股自然垂下的挂绳吊起木牌，木牌上绘制太阳和月亮。整个挂签为一个 84 × 75 DIP 的可复用组件。
+- 点击挂签立即切换浅色和深色。实心暖金图案标示当前外观。工作目录和快捷键保持原值，从齿轮、窗口品牌或卷帘门返回的工作台也沿用所选外观。
