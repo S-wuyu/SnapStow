@@ -28,6 +28,7 @@ const underlay = byId("archive-underlay");
 const preview = byId("preview");
 const cut = byId("cut");
 const folder = byId("explorer");
+const documentViewer = byId("document-viewer");
 const directoryButton = byId("explorer-choose");
 const sourceChoice = byId("source-choice");
 const trayMenu = byId("tray-menu");
@@ -67,15 +68,16 @@ const sampleReplies = {
 const sampleFixtures = {
   note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
   sheet: { name: "验收清单.xlsx", source: "dev", body: "本地已下载 · 48 KB", kind: "file", icon: "X" },
-  environment: { name: "联调环境消息", source: "dev", body: environmentChat, kind: "environment", includes: ["link", "credential"] },
+  environment: { name: "联调环境消息", source: "dev", body: environmentChat, kind: "environment", includes: ["link", "environmentNote", "credential"] },
   link: { name: "测试环境网址", source: "dev", body: environmentUrl, kind: "link" },
+  environmentNote: { name: "联调环境备注", source: "dev", body: "联调环境开好了，大家可以开始验收了。\n名称：支付新版联调", kind: "note", relatedLink: "link" },
   credential: { name: "支付联调测试账号", source: "dev", body: environmentChat, kind: "credential" },
   missing: { name: "回归录屏.mp4", source: "dev", body: "尚未下载 · 8.4 MB", kind: "missing", icon: "↓" },
   brief: { name: "联调记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
   old: { name: "接口清单.xlsx", source: "dev", body: "旧版 · 26 KB", kind: "file", icon: "X" },
   new: { name: "接口清单.xlsx", source: "dev", body: "新版 · 34 KB", kind: "file", icon: "X" },
   review: { name: "验收记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
-  feedback: { name: "反馈记录.md", source: "feedback", body: "空状态文案和按钮分组已复核。", kind: "note" },
+  feedback: { name: "反馈记录", source: "feedback", body: "空状态文案和按钮分组已复核。", kind: "note" },
   query: { name: "交接说明.docx", source: "launch", body: "上线准备 · 32 KB", kind: "file", icon: "W" },
   failed: { name: "回归记录.xlsx", source: "dev", body: "本地已下载 · 52 KB", kind: "file", icon: "X" },
   feedbackNote: { name: "联调反馈备注", source: "feedback", body: "今天的联调反馈我汇总好了，会上可以按这版核对。", kind: "note" },
@@ -92,6 +94,8 @@ const sampleFixtures = {
 const rank = { conflict: 0, confirm: 1, choose: 2, source: 2, missing: 3, query: 4, failed: 5 };
 const stateLabels = { confirm: "待确认原件", choose: "待归档", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
 const missingLabel = "未下载或本地未找到";
+const projectDocumentName = "项目资料.md";
+const credentialName = /账号|帐号|密码|口令|密钥|令牌|(?:^|[^a-z\d])(?:account|user(?:name)?|password|passwd|token|secret|api[_-]?key|authorization|signature)(?![a-z\d])/i;
 const sourceMime = "application/x-snapstow-source";
 const lineMime = "application/x-snapstow-connection";
 const copying = new Map();
@@ -140,7 +144,10 @@ function resetState() {
   for (const key of historicalCaptures) sourceCaptures.set(key, { src: "./art/source/" + key + ".png" });
   projects = new Map([["pay", "支付改版"], ["sync", "支付联调"], ["launch", "上线准备"], ["handoff", "运维交接"]]);
   assignment = new Map([["dev", "pay"], ["feedback", "pay"], ["launch", "launch"]]);
-  records = new Map([["old", { project: "pay", name: fixtures.old.name }], ["feedback", { project: "pay", name: fixtures.feedback.name }]]);
+  records = new Map([
+    ["old", { project: "pay", name: fixtures.old.name }],
+    ["feedback", { project: "pay", name: fixtures.feedback.name, archivedAt: "2026-11-20T02:24:00Z" }],
+  ]);
   pending = new Map([["old", "conflict"], ["new", "conflict"], ["review", "choose"], ["query", "query"], ["failed", "failed"]]);
   merged = new Map();
   conflict = { linked: "old", target: "pay" };
@@ -174,11 +181,24 @@ function art(name, className) {
 function registerMessage(text) {
   const id = "sent-" + (++outgoingCount);
   const links = new Set();
-  for (const match of text.matchAll(/https?:\/\/[^\s<>"'“”‘’，。；！？、）】]+/giu)) {
-    const candidate = match[0].replace(/[.,;!?)\]}]+$/u, "");
-    try { links.add(new URL(candidate).href); } catch { /* Ignore incomplete URLs. */ }
-  }
-  const label = text.split(/https?:\/\//iu)[0].trim().replace(/[：:是=\s]+$/u, "").slice(0, 32);
+  let containsCredentials = false;
+  const remainder = text.replace(/https?:\/\/[^\s<>"'“”‘’，。；！？、）】]+/giu, (match) => {
+    const candidate = match.replace(/[.,;!?)\]}]+$/u, "");
+    try {
+      const url = new URL(candidate);
+      if (url.username || url.password || [...url.searchParams.keys()].some((key) => credentialName.test(key))) {
+        containsCredentials = true;
+      } else {
+        links.add(url.href);
+      }
+      return match.slice(candidate.length);
+    } catch {
+      return match;
+    }
+  });
+  containsCredentials ||= credentialName.test(remainder);
+  const remark = containsCredentials ? "" : remainder.replace(/^[\s，。；：、=:;]+|[\s，；：、=:;]+$/gu, "");
+  const label = remark.replace(/[：:是=\s]+$/u, "").slice(0, 32);
   const includes = [];
   for (const url of links) {
     const identity = channel + "\n" + url;
@@ -190,8 +210,21 @@ function registerMessage(text) {
     }
     includes.push(key);
   }
-  fixtures[id] = { name: text.length > 34 ? text.slice(0, 34) + "…" : text, body: text, kind: "note", source: channel };
-  if (includes.length) fixtures[id].includes = includes;
+  if (remark && (!links.size || /[\p{L}\p{N}\p{Extended_Pictographic}]/u.test(remark))) {
+    const key = id + "-note";
+    const body = links.size ? remark : text;
+    fixtures[key] = {
+      name: body.length > 34 ? body.slice(0, 34) + "…" : body,
+      body, kind: "note", source: channel, relatedLink: links.size === 1 ? includes[0] : undefined,
+    };
+    includes.push(key);
+  }
+  if (containsCredentials) {
+    const key = id + "-credential";
+    fixtures[key] = { name: "账号资料", kind: "credential", source: channel };
+    includes.push(key);
+  }
+  fixtures[id] = { body: text, includes };
   return id;
 }
 
@@ -212,6 +245,10 @@ function sourceOf(key) {
 
 function recordNames(project) {
   return [...records].filter(([, entry]) => entry.project === project).map(([key, entry]) => [key, entry.name]);
+}
+
+function archiveRecord(key, project, name = fixtures[key].name, original) {
+  records.set(key, { project, name, original, archivedAt: new Date().toISOString() });
 }
 
 function chatMessage(key) {
@@ -434,7 +471,7 @@ function captureItems(keys, rect) {
       revealPendingKey = key;
       pending.set(key, state);
     } else if (item.kind === "file") beginCopy(key, project, newName(key, project));
-    else records.set(key, { project, name: item.name });
+    else archiveRecord(key, project);
   }
 }
 
@@ -640,7 +677,7 @@ function beginCopy(key, project, name = fixtures[key].name, original) {
   const task = { project, name, original };
   task.timer = setTimeout(() => {
     copying.delete(key);
-    records.set(key, { project: task.project, name: task.name, original: task.original });
+    archiveRecord(key, task.project, task.name, task.original);
     if (!bench.hidden) {
       syncCopyBadges();
       if (archive.open && viewing === task.project) renderArchive();
@@ -1020,6 +1057,30 @@ function directoryName(path) {
   return path.slice(path.lastIndexOf("\\") + 1);
 }
 
+function projectMarkdown(project) {
+  const entries = new Map();
+  for (const [key, archiveEntry] of records) {
+    if (archiveEntry.project !== project) continue;
+    const { kind, body, source, relatedLink } = fixtures[key];
+    if (kind !== "link" && kind !== "note") continue;
+    const linkKey = records.get(relatedLink)?.project === project ? relatedLink : key;
+    if (!entries.has(linkKey)) entries.set(linkKey, { source, time: records.get(linkKey).archivedAt, lines: [] });
+    const lines = entries.get(linkKey).lines;
+    if (kind === "link") {
+      lines.unshift("- 网址：<" + body + ">");
+    } else {
+      const safe = body.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+        .replace(/[\\`*_{}\[\]#+~]/g, "\\$&").replaceAll("\n", "\n  ");
+      lines.push("- 备注：" + safe);
+    }
+  }
+  if (!entries.size) return "";
+  const sections = [...entries.values()].map(({ source, time, lines }) => [
+    "## " + names[source], "", "- 归档时间：" + time, ...lines,
+  ].join("\n"));
+  return "# 项目资料\n\n" + sections.join("\n\n") + "\n";
+}
+
 function folderLink(path, text, className) {
   const button = node("button", className, text);
   button.type = "button";
@@ -1028,14 +1089,19 @@ function folderLink(path, text, className) {
   return button;
 }
 
-function folderRow(name, path) {
+function folderRow(name, path, open) {
   const row = node("li");
-  const entry = path ? folderLink(path, "", "explorer-row") : node("div", "explorer-row");
+  const entry = path ? folderLink(path, "", "explorer-row") : node(open ? "button" : "div", "explorer-row");
+  if (open) {
+    entry.type = "button";
+    entry.addEventListener("click", open);
+  }
   const label = node("span", "entry-name");
   const icon = node("i", path ? "folder-mark" : "file-mark");
   icon.setAttribute("aria-hidden", "true");
   label.append(icon, node("span", "", name));
-  entry.append(label, node("small", "", path ? (parentDirectory(path) === computer ? "磁盘" : "文件夹") : "文件"));
+  const type = path ? (parentDirectory(path) === computer ? "磁盘" : "文件夹") : open ? "Markdown 文档" : "文件";
+  entry.append(label, node("small", "", type));
   row.append(entry);
   return row;
 }
@@ -1055,8 +1121,15 @@ function renderFolder() {
   const rows = children.map((child) => folderRow(directoryName(child), child));
   const project = projectPaths.get(path);
   if (project && !choose) {
+    const markdown = projectMarkdown(project);
+    if (markdown) rows.push(folderRow(projectDocumentName, null, () => {
+      byId("document-path").textContent = directoryPath(path, projectDocumentName);
+      byId("document-text").textContent = markdown;
+      documentViewer.showModal();
+      byId("document-text").scrollTop = 0;
+    }));
     for (const [key, name] of recordNames(project)) {
-      if (!records.get(key).historical) rows.push(folderRow(name));
+      if (fixtures[key].kind === "file" && !records.get(key).historical) rows.push(folderRow(name));
     }
   }
   if (!rows.length) rows.push(node("li", "explorer-empty", "空文件夹"));
@@ -1159,6 +1232,7 @@ function setRunning(active) {
 
 function reset() {
   closeArchive(false);
+  if (documentViewer.open) documentViewer.close();
   if (folder.open) folder.close();
   if (sourceChoice.open) sourceChoice.close();
   resetState();

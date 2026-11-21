@@ -416,6 +416,11 @@ button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-targe
 .explorer-action.primary { border-color: #7195bb; background: #e1eef9; }
 .explorer-action:hover:enabled { background: #d4e7f7; }
 .explorer-action:disabled { opacity: .5; }
+.document-viewer { width: min(640px, calc(100% - 24px)); }
+.document-viewer[open] { grid-template-rows: auto minmax(0, 1fr) auto; }
+.document-viewer:modal { overscroll-behavior: contain; }
+.document-viewer::backdrop { overflow: hidden; overscroll-behavior: contain; }
+.document-text { min-height: min(280px, 40dvh); max-height: 56dvh; margin: 0; padding: 15px; overflow: auto; overscroll-behavior: contain; color: #253950; background: #fff; font: .86rem/1.55 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .source-choice { width: min(550px, calc(100% - 24px)); }
 .source-choice[open] { grid-template-rows: auto minmax(0, 1fr); }
 .source-choice .explorer-content { background: #fff; padding: 8px 12px 12px; }
