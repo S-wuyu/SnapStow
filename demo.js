@@ -3,6 +3,8 @@
 const byId = (id) => document.getElementById(id);
 const screen = byId("screen");
 const chat = byId("chat-window");
+const chatStack = byId("chat-stack");
+const chatHandle = byId("chat-handle");
 const bench = byId("workbench");
 const messages = byId("messages");
 const messageItems = byId("message-items");
@@ -24,7 +26,7 @@ const underlay = byId("archive-underlay");
 const preview = byId("preview");
 const cut = byId("cut");
 const folder = byId("explorer");
-const rootDialog = byId("choose-root");
+const directoryButton = byId("explorer-choose");
 const trayMenu = byId("tray-menu");
 const warehouseDoor = byId("warehouse-door");
 const desktopTagline = desktopCue.textContent;
@@ -43,7 +45,17 @@ const environmentChat = [
   "账号：demo-tester",
   "密码：demo-only",
 ].join("\n");
-const channels = { dev: ["environment", "note", "sheet", "missing"], temp: ["brief"] };
+const channels = {
+  dev: ["environment", "note", "sheet", "missing"],
+  temp: ["brief"],
+  feedback: ["feedbackNote", "feedbackSheet"],
+  launch: ["launchNote", "launchFile"],
+};
+const clients = {
+  wechat: { title: "微信", groups: ["dev", "temp"], sender: "林一" },
+  dingtalk: { title: "钉钉", groups: ["feedback"], sender: "许舟" },
+  wecom: { title: "企业微信", groups: ["launch"], sender: "周宁" },
+};
 const fixtures = {
   note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
   sheet: { name: "验收清单.xlsx", source: "dev", body: "本地已下载 · 48 KB", kind: "file", icon: "X" },
@@ -58,9 +70,13 @@ const fixtures = {
   feedback: { name: "反馈记录.md", source: "feedback", body: "空状态文案和按钮分组已复核。", kind: "note" },
   query: { name: "交接说明.docx", source: "launch", body: "上线准备 · 32 KB", kind: "file", icon: "W" },
   failed: { name: "回归记录.xlsx", source: "dev", body: "本地已下载 · 52 KB", kind: "file", icon: "X" },
+  feedbackNote: { name: "联调反馈备注", source: "feedback", body: "今天的联调反馈我汇总好了，会上可以按这版核对。", kind: "note" },
+  feedbackSheet: { name: "联调反馈汇总.xlsx", source: "feedback", body: "本地已下载 · 64 KB", kind: "file", icon: "X" },
+  launchNote: { name: "上线交接备注", source: "launch", body: "明早上线前一起过一遍值班安排，交接表我放群里了。", kind: "note" },
+  launchFile: { name: "上线值班交接.pdf", source: "launch", body: "本地已下载 · 192 KB", kind: "file", icon: "P" },
 };
 const rank = { conflict: 0, choose: 1, source: 1, missing: 2, query: 3, failed: 4 };
-const stateLabels = { choose: "待选项目", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
+const stateLabels = { choose: "待归档", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
 const sourceMime = "application/x-snapstow-source";
 const lineMime = "application/x-snapstow-connection";
 const copying = new Map();
@@ -76,6 +92,8 @@ const captureStyles = [
 
 let projects, assignment, records, pending, merged, conflict;
 let root, shortcut, channel, queuePage, boxPage, selected, viewing, sourceSelection, composing;
+let chatOrder, clientRooms, chatOffset, folderView;
+let chatDrag = null;
 let lensMode = false;
 let settingsOpen = false;
 let listening = false;
@@ -109,9 +127,13 @@ function resetState() {
   root = "D:\\项目仓库";
   shortcut = "Alt+Shift+S";
   channel = "dev";
+  chatOrder = Object.keys(clients);
+  clientRooms = new Map(chatOrder.map((client) => [client, clients[client].groups[0]]));
+  chatOffset = { x: 0, y: 0 };
+  chatStack.style.removeProperty("translate");
   queuePage = boxPage = 0;
   selected = viewing = sourceSelection = null;
-  composing = { dev: [], temp: [] };
+  composing = Object.fromEntries(Object.keys(channels).map((key) => [key, []]));
 }
 
 function node(tag, className, text) {
@@ -161,9 +183,21 @@ function chatMessage(key) {
 }
 
 function renderChat() {
+  const client = chatOrder[0];
+  const profile = clients[client];
+  chat.dataset.client = client;
+  byId("chat-client").textContent = profile.title;
+  byId("sender-name").textContent = profile.sender;
+  byId("sender-avatar").textContent = profile.sender[0];
   byId("chat-title").textContent = names[channel];
   for (const button of chat.querySelectorAll("[data-channel]")) {
+    button.hidden = !profile.groups.includes(button.dataset.channel);
     button.setAttribute("aria-pressed", String(button.dataset.channel === channel));
+  }
+  for (const tab of chatStack.querySelectorAll(".chat-back")) {
+    const depth = chatOrder.indexOf(tab.dataset.client);
+    tab.hidden = depth === 0;
+    tab.style.setProperty("--depth", depth);
   }
   messageItems.replaceChildren(...channels[channel].map(chatMessage));
   messages.querySelectorAll(".sent").forEach((item) => item.remove());
@@ -171,15 +205,41 @@ function renderChat() {
   messages.scrollTop = 0;
 }
 
+function moveChat(x, y) {
+  const narrow = screen.clientWidth <= 740;
+  const baseLeft = chatStack.offsetLeft;
+  const baseTop = chatStack.offsetTop;
+  const fan = Math.max(23, Math.min(40, screen.clientWidth * .031));
+  const left = narrow ? 5 : Math.min(baseLeft, fan * 2 + 5);
+  const top = narrow ? 172 : 14;
+  chatOffset = {
+    x: Math.max(left - baseLeft, Math.min(screen.clientWidth - baseLeft - chatStack.offsetWidth - 5, x)),
+    y: Math.max(Math.min(top, baseTop) - baseTop, Math.min(screen.clientHeight - baseTop - chatStack.offsetHeight - 5, y)),
+  };
+  chatStack.style.translate = chatOffset.x + "px " + chatOffset.y + "px";
+}
+
+function endChatDrag() {
+  const pointer = chatDrag?.pointer;
+  chatDrag = null;
+  chatStack.classList.remove("dragging");
+  const titleBar = chatHandle.parentElement;
+  if (pointer !== undefined && titleBar.hasPointerCapture(pointer)) titleBar.releasePointerCapture(pointer);
+}
+
 function showChat(open) {
   chatOpen = open;
-  if (!open) stopCapture();
-  chat.hidden = !open;
+  if (!open) {
+    stopCapture();
+    endChatDrag();
+  }
+  chatStack.hidden = !open;
+  if (open) moveChat(chatOffset.x, chatOffset.y);
   byId("chat-app").setAttribute("aria-pressed", String(open));
 }
 
 function startCapture() {
-  if (!running || !bench.hidden || folder.open || rootDialog.open) return;
+  if (!running || !bench.hidden || folder.open) return;
   if (!chatOpen) showChat(true);
   captureActive = true;
   chat.classList.add("is-capturing");
@@ -328,7 +388,8 @@ function fileCard(key, state, inArchive = false) {
     button.append(art("download-missing", "missing-mark"));
     singleState = "未下载或本地未找到";
   } else if (singleState) {
-    button.append(node("span", "file-state", singleState));
+    const neutral = state === "choose" || state === "source";
+    button.append(node("span", neutral ? "file-state neutral" : "file-state", singleState));
   }
   if (!inArchive) {
     if (canPlace(key)) button.setAttribute("aria-pressed", String(selected === key));
@@ -338,7 +399,7 @@ function fileCard(key, state, inArchive = false) {
   if (key === "new" && state === "conflict") singleState = "同名冲突，新收到";
   if (state === "copying") {
     singleState = "正在复制";
-    button.append(node("span", "file-state", singleState));
+    button.append(node("span", "file-state neutral", singleState));
   }
   if (state === "history") singleState = "历史副本";
   const description = singleState ? name + " · " + singleState : name;
@@ -448,7 +509,8 @@ function showBench(open) {
   stopCapture();
   bench.hidden = !open;
   tray.setAttribute("aria-expanded", String(open));
-  chat.inert = open;
+  endChatDrag();
+  chatStack.inert = open;
   desktopGuide.inert = open;
   if (open) {
     renderBench();
@@ -761,15 +823,106 @@ function showSettings(open) {
   syncLine();
 }
 
-function openFolder(project) {
+const computer = "此电脑";
+const localDrive = "D:\\";
+const teamDrive = "E:\\";
+const demoDirectories = new Map([
+  [computer, [localDrive, teamDrive]],
+  [localDrive, ["D:\\项目仓库", "D:\\工作"]],
+  ["D:\\工作", ["D:\\工作\\归档"]],
+  [teamDrive, ["E:\\团队资料"]],
+]);
+
+function directoryPath(parent, name) {
+  return parent + (parent.endsWith("\\") ? "" : "\\") + name;
+}
+
+function parentDirectory(path) {
+  if (path === computer) return null;
+  if (path.length === 3) return computer;
+  return path.slice(0, Math.max(3, path.lastIndexOf("\\")));
+}
+
+function directoryName(path) {
+  if (path === computer) return computer;
+  if (path === localDrive) return "本地磁盘 (D:)";
+  if (path === teamDrive) return "团队盘 (E:)";
+  return path.slice(path.lastIndexOf("\\") + 1);
+}
+
+function folderLink(path, text, className) {
+  const button = node("button", className, text);
+  button.type = "button";
+  button.dataset.path = path;
+  if (path === folderView.path) button.setAttribute("aria-current", "location");
+  return button;
+}
+
+function folderRow(name, path) {
+  const row = node("li");
+  const entry = path ? folderLink(path, "", "explorer-row") : node("div", "explorer-row");
+  const label = node("span", "entry-name");
+  const icon = node("i", path ? "folder-mark" : "file-mark");
+  icon.setAttribute("aria-hidden", "true");
+  label.append(icon, node("span", "", name));
+  entry.append(label, node("small", "", path ? (parentDirectory(path) === computer ? "磁盘" : "文件夹") : "文件"));
+  row.append(entry);
+  return row;
+}
+
+function renderFolder() {
+  const { path, history, choose } = folderView;
+  const trail = [];
+  for (let part = path; part; part = parentDirectory(part)) trail.unshift(part);
+  const address = byId("explorer-path");
+  address.replaceChildren(...trail.map((part) => folderLink(part, directoryName(part))));
+  address.scrollLeft = address.scrollWidth;
+  const places = [...new Set([computer, localDrive, teamDrive, root].filter(Boolean))];
+  byId("explorer-places").replaceChildren(...places.map((place) => folderLink(place, directoryName(place))));
+
+  const projectPaths = new Map([...projects].map(([key, name]) => [directoryPath(root, name), key]));
+  const children = [...new Set([...(demoDirectories.get(path) || []), ...(path === root ? projectPaths.keys() : [])])];
+  const rows = children.map((child) => folderRow(directoryName(child), child));
+  const project = projectPaths.get(path);
+  if (project && !choose) {
+    for (const [key, name] of recordNames(project)) {
+      if (!records.get(key).historical) rows.push(folderRow(name));
+    }
+  }
+  if (!rows.length) rows.push(node("li", "explorer-empty", "空文件夹"));
+  byId("explorer-list").replaceChildren(...rows);
+  byId("explorer-back").disabled = history.length === 0;
+  byId("explorer-up").disabled = !parentDirectory(path);
+  byId("explorer-location").textContent = path;
+  directoryButton.disabled = path === computer;
+}
+
+function navigateFolder(path) {
+  if (!path || path === folderView.path) return;
+  folderView.history.push(folderView.path);
+  folderView.path = path;
+  renderFolder();
+}
+
+function showFolder(path, choose, opener) {
+  if (folder.open) return;
+  folderView = { path, choose, history: [] };
+  byId("explorer-caption").textContent = choose ? "选择工作总目录" : "文件资源管理器";
+  byId("explorer-cancel").textContent = choose ? "取消" : "关闭";
+  directoryButton.hidden = !choose;
+  renderFolder();
+  opener.focus({ preventScroll: true });
+  folder.showModal();
+  const address = byId("explorer-path");
+  address.scrollLeft = address.scrollWidth;
+  address.lastElementChild.focus({ preventScroll: true });
+}
+
+function openFolder(project, opener = tray) {
   closeTray();
   if (!root) return;
-  byId("explorer-path").textContent = project ? root + "\\" + projects.get(project) : root;
-  const list = byId("explorer-list");
-  const namesHere = project ? recordNames(project).filter(([key]) => !records.get(key).historical).map(([, name]) => name) : [...projects.values()];
-  list.replaceChildren(...namesHere.map((name) => node("li", "", name)));
-  if (!namesHere.length) list.append(node("li", "", "空文件夹"));
-  folder.showModal();
+  const path = project ? directoryPath(root, projects.get(project)) : root;
+  showFolder(path, false, opener);
 }
 
 function openTray() {
@@ -837,7 +990,6 @@ function setRunning(active) {
 function reset() {
   closeArchive(false);
   if (folder.open) folder.close();
-  if (rootDialog.open) rootDialog.close();
   resetState();
   setRunning(true);
   showBench(false);
@@ -846,7 +998,7 @@ function reset() {
   byId("theme").setAttribute("aria-pressed", "false");
   showSettings(false);
   showChat(true);
-  chat.inert = false;
+  chatStack.inert = false;
   capture.setAttribute("aria-keyshortcuts", shortcut);
   byId("reply").value = "";
   renderChat();
@@ -862,6 +1014,42 @@ archiveExample.addEventListener("click", () => {
   showBench(true);
   showSettings(false);
   openArchive("pay", boxes.querySelector('[data-project="pay"]'));
+});
+chatStack.querySelector(".chat-sides").addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-client]");
+  if (!tab) return;
+  stopCapture();
+  clientRooms.set(chatOrder[0], channel);
+  const client = tab.dataset.client;
+  chatOrder = [client, ...chatOrder.filter((id) => id !== client)];
+  channel = clientRooms.get(client);
+  renderChat();
+  if (event.detail === 0) chatHandle.focus({ preventScroll: true });
+});
+const chatTitleBar = chatHandle.parentElement;
+chatTitleBar.addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary || event.button !== 0 || event.target.closest("#min-chat")) return;
+  chatDrag = { pointer: event.pointerId, x: event.clientX, y: event.clientY, start: chatOffset };
+  chatTitleBar.setPointerCapture(event.pointerId);
+});
+chatTitleBar.addEventListener("pointermove", (event) => {
+  if (chatDrag?.pointer !== event.pointerId) return;
+  const dx = event.clientX - chatDrag.x;
+  const dy = event.clientY - chatDrag.y;
+  if (!chatStack.classList.contains("dragging") && Math.hypot(dx, dy) < 5) return;
+  chatStack.classList.add("dragging");
+  moveChat(chatDrag.start.x + dx, chatDrag.start.y + dy);
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  chatTitleBar.addEventListener(type, (event) => {
+    if (chatDrag?.pointer === event.pointerId && (type !== "lostpointercapture" || event.target === chatTitleBar)) endChatDrag();
+  });
+}
+chatHandle.addEventListener("keydown", (event) => {
+  const direction = { ArrowLeft: [-24, 0], ArrowRight: [24, 0], ArrowUp: [0, -24], ArrowDown: [0, 24] }[event.key];
+  if (!direction) return;
+  event.preventDefault();
+  moveChat(chatOffset.x + direction[0], chatOffset.y + direction[1]);
 });
 chat.querySelector(".channels").addEventListener("click", (event) => {
   const button = event.target.closest("[data-channel]");
@@ -955,16 +1143,24 @@ byId("bench-home").addEventListener("click", () => {
 byId("lens").addEventListener("click", () => setLens(!lensMode));
 byId("archive-lens").addEventListener("click", () => setLens(!lensMode));
 byId("settings").addEventListener("click", () => showSettings(!settingsOpen));
-byId("root-picker").addEventListener("click", () => {
-  if (root) byId("root-choice").value = root;
-  rootDialog.showModal();
+byId("root-picker").addEventListener("click", (event) => showFolder(root || computer, true, event.currentTarget));
+folder.addEventListener("click", (event) => {
+  const entry = event.target.closest("[data-path]");
+  if (!entry || !folder.contains(entry) || entry.dataset.path === folderView.path) return;
+  navigateFolder(entry.dataset.path);
+  byId("explorer-path").lastElementChild.focus({ preventScroll: true });
 });
-byId("root-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  root = byId("root-choice").value;
+byId("explorer-up").addEventListener("click", () => navigateFolder(parentDirectory(folderView.path)));
+byId("explorer-back").addEventListener("click", () => {
+  folderView.path = folderView.history.pop();
+  renderFolder();
+});
+directoryButton.addEventListener("click", () => {
+  if (!folderView.choose || folderView.path === computer) return;
+  root = folderView.path;
   byId("root-picker").textContent = root;
   byId("root-picker").title = root;
-  rootDialog.close();
+  folder.close();
 });
 byId("shortcut").addEventListener("click", () => {
   listening = true;
@@ -1207,7 +1403,7 @@ boxes.addEventListener("contextmenu", (event) => {
   const box = event.target.closest("[data-project]");
   if (!box) return;
   event.preventDefault();
-  openFolder(box.dataset.project);
+  openFolder(box.dataset.project, box);
 });
 boxes.addEventListener("keydown", (event) => {
   const box = event.target.closest("[data-project]");
@@ -1305,7 +1501,7 @@ for (const event of ["pointerout", "focusout"]) {
   });
 }
 document.addEventListener("keydown", (event) => {
-  if (event.defaultPrevented || folder.open || rootDialog.open) return;
+  if (event.defaultPrevented || folder.open) return;
   if (event.key === "Escape") {
     if (fileDrag) clearFileDrag();
     else if (!trayMenu.hidden) {
@@ -1336,6 +1532,7 @@ new ResizeObserver(() => {
   if (pageSize() !== lastQueueSize) renderQueue();
   else syncLine();
 }).observe(bench);
+new ResizeObserver(() => { if (chatOpen) moveChat(chatOffset.x, chatOffset.y); }).observe(screen);
 byId("reset").addEventListener("click", reset);
 resetState();
 stopCapture();

@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f6f9">
+  <meta name="theme-color" content="#ccd9e5">
   <meta name="description" content="在 Windows 模拟桌面亲手试用圈收 SnapStow，从群聊圈选附件、链接和备注，再到项目箱里找到它们。">
   <title>圈收 SnapStow · 圈一下，松手继续工作</title>
   <link rel="icon" href="./snapstow.png">
-  <link rel="stylesheet" href="./style.css?v=source-lens-png">
-  <script src="./demo.js?v=source-lens-png" defer></script>
+  <link rel="stylesheet" href="./style.css?v=chat-stack-directories">
+  <script src="./demo.js?v=chat-stack-directories" defer></script>
 </head>
 <body>
   <a class="skip" href="#try">跳到桌面体验</a>
@@ -26,21 +26,31 @@
           </div>
         </section>
 
-        <section class="window chat-window" id="chat-window" aria-labelledby="chat-title">
+        <div class="chat-stack" id="chat-stack">
+          <div class="chat-sides" role="group" aria-label="切换群聊窗口">
+            <button class="chat-back" type="button" data-client="wechat" hidden><span>微信</span></button>
+            <button class="chat-back" type="button" data-client="dingtalk" style="--depth: 1"><span>钉钉</span></button>
+            <button class="chat-back" type="button" data-client="wecom" style="--depth: 2"><span>企业微信</span></button>
+          </div>
+        <section class="window chat-window" id="chat-window" data-client="wechat" aria-labelledby="chat-title">
           <header class="chat-chrome">
-            <i class="glyph chat-glyph" aria-hidden="true"></i>
+            <button type="button" class="chat-handle" id="chat-handle" title="拖动窗口，方向键也能移动" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown">
+              <i class="glyph chat-glyph" aria-hidden="true"></i><span id="chat-client">微信</span><span class="sr-only">，使用方向键移动窗口</span>
+            </button>
             <button type="button" class="icon-control chrome-close" id="min-chat" aria-label="最小化群聊" title="最小化群聊"><span aria-hidden="true">−</span></button>
           </header>
           <div class="chat-layout">
             <div class="channels" role="group" aria-label="群聊列表">
               <button type="button" data-channel="dev" aria-pressed="true" title="支付改版研发群"><span class="avatar" aria-hidden="true">支</span><span>支付改版研发群</span></button>
               <button type="button" data-channel="temp" aria-pressed="false" title="临时会话"><span class="avatar violet" aria-hidden="true">临</span><span>临时会话</span></button>
+              <button type="button" data-channel="feedback" aria-pressed="false" hidden><span class="avatar" aria-hidden="true">联</span><span>支付联调反馈群</span></button>
+              <button type="button" data-channel="launch" aria-pressed="false" hidden><span class="avatar" aria-hidden="true">上</span><span>上线准备群</span></button>
             </div>
             <div class="conversation">
               <header class="conversation-head"><h2 id="chat-title">支付改版研发群</h2></header>
               <div class="messages" id="messages" aria-label="群聊消息">
                 <p class="message-time">10:24</p>
-                <div class="message-author"><span class="avatar sender" aria-hidden="true">林</span><span>林一</span></div>
+                <div class="message-author"><span class="avatar sender" id="sender-avatar" aria-hidden="true">林</span><span id="sender-name">林一</span></div>
                 <div id="message-items" class="message-items"></div>
                 <div class="selection-rect" id="selection" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></div>
               </div>
@@ -51,6 +61,7 @@
             </div>
           </div>
         </section>
+        </div>
 
         <section class="window workbench" id="workbench" data-theme="dark" aria-label="圈收工作台" hidden>
           <header class="bench-chrome">
@@ -136,18 +147,27 @@
   </main>
 
   <dialog id="explorer" class="explorer" aria-labelledby="explorer-title">
-    <div class="explorer-head"><h2 id="explorer-title">文件资源管理器</h2><form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="关闭资源管理器" autofocus><span aria-hidden="true">×</span></button></form></div>
-    <p class="path" id="explorer-path"></p>
-    <ul id="explorer-list"></ul>
-  </dialog>
-
-  <dialog id="choose-root" class="explorer" aria-labelledby="choose-title">
-    <div class="explorer-head"><h2 id="choose-title">选择工作总目录</h2><form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="取消选择目录"><span aria-hidden="true">×</span></button></form></div>
-    <form id="root-form" class="root-form">
-      <label for="root-choice">示例目录</label>
-      <select id="root-choice"><option>D:\项目仓库</option><option>D:\工作\归档</option><option>E:\团队资料</option></select>
-      <button type="submit" autofocus>选择文件夹</button>
-    </form>
+    <header class="explorer-head">
+      <h2 id="explorer-title"><i class="folder-mark" aria-hidden="true"></i><span id="explorer-caption">文件资源管理器</span></h2>
+      <form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="关闭文件窗口"><span aria-hidden="true">×</span></button></form>
+    </header>
+    <div class="explorer-toolbar">
+      <button type="button" id="explorer-back" class="icon-control explorer-nav" aria-label="返回上一个位置" title="后退">←</button>
+      <button type="button" id="explorer-up" class="icon-control explorer-nav" aria-label="转到上一级目录" title="向上">↑</button>
+      <nav id="explorer-path" class="explorer-address" aria-label="地址栏"></nav>
+    </div>
+    <div class="explorer-pane">
+      <nav id="explorer-places" class="explorer-places" aria-label="常用位置"></nav>
+      <div id="explorer-content" class="explorer-content">
+        <div class="explorer-columns" aria-hidden="true"><span>名称</span><span>类型</span></div>
+        <ul id="explorer-list" aria-label="当前目录的内容"></ul>
+      </div>
+    </div>
+    <footer class="explorer-footer">
+      <span id="explorer-location" title="当前目录"></span>
+      <button type="button" id="explorer-choose" class="explorer-action primary" hidden>选择文件夹</button>
+      <form method="dialog"><button class="explorer-action" id="explorer-cancel" type="submit">关闭</button></form>
+    </footer>
   </dialog>
 </body>
 </html>
