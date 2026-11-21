@@ -29,7 +29,3 @@
 ```powershell
 python -m http.server 8765 --bind 127.0.0.1 --directory promo
 ```
-
-## 项目文档
-
-[产品需求](PRD.md) · [UI/UX 设计](docs/design/design.md) · [技术设计](docs/technical/architecture.md)
