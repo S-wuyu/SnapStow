@@ -1,3 +1,7 @@
+@font-face { font-family: "WDXL Lubrifont SC"; src: url("./fonts/wdxl-labels.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("./fonts/nunito-medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Noto Sans SC"; src: url("./fonts/noto-sans-sc-demo.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+
 :root {
   color-scheme: light;
   font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -234,8 +238,10 @@ button:active:not(:disabled) { filter: brightness(.94); }
   color-scheme: light;
 }
 .bench-chrome { position: relative; flex: 0 0 62px; display: flex; justify-content: space-between; align-items: center; margin-inline: clamp(13px, 4cqw, 34px); border-bottom: 1px solid var(--bench-line); }
-.bench-brand { display: inline-flex; gap: 8px; align-items: center; border: 0; background: transparent; font-size: .88rem; color: inherit; padding: 0 6px 0 0; text-align: left; }
-.bench-brand small { color: var(--bench-muted); display: block; font-size: .68rem; }
+.bench-brand { display: inline-flex; gap: 8px; align-items: center; border: 0; background: transparent; color: inherit; padding: 0 6px 0 0; text-align: left; }
+.bench-wordmark { font: 400 1.375rem/1.27 "WDXL Lubrifont SC", "Noto Sans SC", sans-serif; }
+.bench-brand small { color: var(--bench-muted); display: block; font: 500 .9375rem/1.33 "Nunito", sans-serif; }
+.tray-system time { font: 500 .875rem/1.43 "Nunito", sans-serif; }
 .bench-tools { display: flex; align-items: center; gap: clamp(7px, 1.7cqw, 16px); }
 .tool { --control-border: var(--bench-line); --control-bg: var(--bench-panel); --control-hover: var(--bench-surface); --icon-size: 17px; }
 .tool:hover:enabled, .tool[aria-pressed="true"] { border-color: var(--bench-outline); }
@@ -251,7 +257,7 @@ button:active:not(:disabled) { filter: brightness(.94); }
 .queue { --queue-size: 3; --slot-height: 118px; display: grid; grid-template-columns: repeat(var(--queue-size), minmax(0, 1fr)); gap: clamp(7px, 3.1cqw, 28px); background: var(--bench-panel); border: 1px solid var(--bench-line); border-radius: 10px; padding: 13px clamp(8px, 4cqw, 36px); }
 .file-card { position: relative; width: 100%; min-width: 0; min-height: 118px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: var(--bench-panel); border: 1px solid var(--bench-line); padding: 7px; color: var(--bench-ink); border-radius: 8px; text-align: left; }
 .file-card img { width: 55px; height: 66px; object-fit: contain; pointer-events: none; }
-.file-card strong { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(.66rem, 1.55cqw, .82rem); font-weight: 530; }
+.file-card strong { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(.875rem, 1.8cqw, 1rem); font-weight: 500; line-height: 1.5; }
 .queue .file-card { height: var(--slot-height); cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
 .queue .file-card.drag-origin { opacity: .42; }
 .queue .feature-card { justify-content: center; text-align: center; color: var(--bench-muted); border-color: transparent; cursor: inherit; touch-action: auto; background: transparent; }
@@ -264,7 +270,7 @@ button:active:not(:disabled) { filter: brightness(.94); }
 .drag-ghost .file-state { font-size: .52rem; padding: 2px 3px; }
 .drag-ghost.over-bin { opacity: .43; filter: blur(.8px); box-shadow: none; }
 button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-target { border-color: var(--selection-line); background: var(--selection-bg); }
-.file-card .file-state { position: absolute; right: 5px; top: 5px; background: var(--danger-bg); color: var(--danger); padding: 3px 5px; font-size: .63rem; border-radius: 4px; max-width: calc(100% - 10px); }
+.file-card .file-state { position: absolute; right: 5px; top: 5px; background: var(--danger-bg); color: var(--danger); padding: 2px 5px; font-size: clamp(.625rem, 1.5cqw, .875rem); line-height: 1.43; border-radius: 4px; max-width: calc(100% - 10px); }
 .file-card .file-state.neutral { background: var(--neutral-tag); color: var(--neutral-ink); }
 .missing-mark { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; background: var(--missing-bg); color: var(--missing-ink); }
 .missing-mark::before { content: ""; width: 23px; height: 23px; background: currentColor; mask: url("./art/download-missing.svg") center / contain no-repeat; }
@@ -283,14 +289,25 @@ button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-targe
 .drop-bin { position: absolute; z-index: 6; width: clamp(58px, 15cqw, 76px); aspect-ratio: 76 / 82; right: clamp(16px, 5cqw, 44px); bottom: 8px; }
 .drop-bin img { display: block; width: 100%; height: 100%; pointer-events: none; }
 .drop-bin:not([data-hit]) img + img, .drop-bin[data-hit] img:first-child { display: none; }
+.bin-hint { position: absolute; top: -12px; left: -143px; width: 154px; aspect-ratio: 154 / 34; margin: 0; padding-inline: 5px 15px; display: grid; place-items: center; color: var(--bench-ink); font-size: .875rem; line-height: 1.43; background: url("./art/bin-reject-dark.svg") center / contain no-repeat; pointer-events: none; }
+.workbench[data-theme="light"] .bin-hint { background-image: url("./art/bin-reject-light.svg"); }
 .boxes { position: absolute; inset: 1% 1% auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-items: center; pointer-events: none; transform: translate(var(--belt-move, 0px), calc(var(--belt-move, 0px) * -.075)); }
-.project { position: relative; width: min(94%, 162px); aspect-ratio: 162 / 100; color: #202732; padding: 0; border: 0; background: transparent; border-radius: 8px; cursor: pointer; pointer-events: auto; align-self: start; }
+.project { position: relative; width: min(94%, 162px); aspect-ratio: 162 / 100; color: #202732; padding: 0; border: 0; background: transparent; border-radius: 8px; cursor: grab; pointer-events: auto; align-self: start; touch-action: none; -webkit-user-select: none; user-select: none; }
 .project:nth-child(2) { margin-top: -7%; }
+.project[data-empty] { grid-column: 2; }
 .project img { position: absolute; pointer-events: none; }
 .project .parcel { inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.workbench[data-theme="dark"] .project .empty-light, .workbench[data-theme="light"] .project .empty-dark { display: none; }
 .project .parcel-label { left: 8.6%; top: 40%; width: 82.7%; height: 42%; object-fit: contain; }
+.project .parcel-label-tall { display: none; top: 32%; height: auto; }
+.project[data-long-label] .parcel-label:not(.parcel-label-tall) { display: none; }
+.project[data-long-label] .parcel-label-tall { display: block; }
 .project .parcel-glow { left: -12%; top: -13%; width: 124%; max-width: none; height: 125%; opacity: 0; object-fit: contain; }
-.project strong { position: absolute; left: 13%; top: 56%; width: 64%; height: 26%; color: #202732; font-size: clamp(.67rem, 1.35cqw, .81rem); line-height: 1.07; font-weight: 650; text-align: center; align-content: center; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.project strong { position: absolute; left: 13%; top: 69%; width: 64%; translate: 0 -50%; color: #202732; font-size: .875rem; line-height: 1.35; font-weight: 500; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.project[data-long-label] strong { top: 65%; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.project.project-drag-origin { opacity: 0; }
+.project.project-ghost { position: absolute; top: 0; left: 0; z-index: 7; margin: 0; pointer-events: none; }
+.project-ghost.over-bin { opacity: .43; filter: blur(1.2px); }
 .belt:not(.swiping) .project:is(:hover, :focus-visible) .parcel-glow, .project.drop-target .parcel-glow, .project[data-copying] .parcel-glow { opacity: 1; }
 .project.drop-target { outline: 2px solid var(--selection-line); outline-offset: 5px; }
 .project[data-copying] .parcel-label { opacity: .65; }
@@ -359,7 +376,7 @@ button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-targe
 .preview-card[data-side="top"] { transform-origin: var(--tip) 100%; }
 .preview-card[data-side="top"]::before { left: calc(var(--tip) - 6px); bottom: -6px; border-width: 0 1px 1px 0; }
 .preview-card strong, .preview-card span { display: block; }
-.preview-card span { color: var(--bench-muted); margin-top: 3px; }
+.preview-card span { color: var(--bench-muted); margin-top: 3px; font-family: "Nunito", "Noto Sans SC", sans-serif; font-weight: 500; }
 .preview-card.has-screenshot { background: var(--bench-panel); }
 .preview-card .source-image { display: grid; justify-items: center; margin: 0 0 8px; border-radius: 4px; overflow: hidden; }
 .source-image img { max-height: var(--photo-height, 220px); width: auto; height: auto; border-radius: 4px; object-fit: contain; }
@@ -371,6 +388,8 @@ button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-targe
 .workbench[data-theme="dark"] .warehouse .light-art, .workbench[data-theme="light"] .warehouse img:not(.light-art):where(.warehouse-body, .warehouse-door img, .warehouse-theme img) { display: none; }
 .warehouse-sign { position: absolute; top: 35.3%; left: 23.1%; width: 52.6%; height: 10%; padding: 0 clamp(9px, 3%, 18px); border: 0; background: url("./art/warehouse-sign.svg") center / contain no-repeat; color: #fff0d4; font-size: clamp(.67rem, 1.6cqw, .88rem); }
 .warehouse-sign span { display: block; width: max-content; max-width: 100%; margin-inline: auto; text-align: start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.warehouse-sign[data-unconfigured] { font: 400 clamp(.875rem, 2.4cqw, 1.3125rem)/1.33 "WDXL Lubrifont SC", "Noto Sans SC", sans-serif; }
+.warehouse-sign:not([data-unconfigured]) { font-size: clamp(.75rem, 1.9cqw, 1.0625rem); font-weight: 500; line-height: 1.35; }
 .warehouse-sign:hover, .warehouse-door:hover { filter: brightness(1.2); }
 .warehouse-door { position: absolute; left: 32.65%; top: 51.92%; width: 33.58%; height: 33.76%; border: 0; padding: 0; overflow: hidden; background: transparent; touch-action: none; cursor: grab; }
 .warehouse-door:active { cursor: grabbing; }
