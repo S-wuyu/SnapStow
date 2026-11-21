@@ -29,6 +29,7 @@ const preview = byId("preview");
 const cut = byId("cut");
 const folder = byId("explorer");
 const directoryButton = byId("explorer-choose");
+const sourceChoice = byId("source-choice");
 const trayMenu = byId("tray-menu");
 const warehouseDoor = byId("warehouse-door");
 const desktopTagline = desktopCue.textContent;
@@ -63,7 +64,7 @@ const sampleReplies = {
   feedback: "收到，复测结果我会补到表里。",
   launch: "交接表收到了，明早见。",
 };
-const fixtures = {
+const sampleFixtures = {
   note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
   sheet: { name: "验收清单.xlsx", source: "dev", body: "本地已下载 · 48 KB", kind: "file", icon: "X" },
   environment: { name: "联调环境消息", source: "dev", body: environmentChat, kind: "environment", includes: ["link", "credential"] },
@@ -78,12 +79,19 @@ const fixtures = {
   query: { name: "交接说明.docx", source: "launch", body: "上线准备 · 32 KB", kind: "file", icon: "W" },
   failed: { name: "回归记录.xlsx", source: "dev", body: "本地已下载 · 52 KB", kind: "file", icon: "X" },
   feedbackNote: { name: "联调反馈备注", source: "feedback", body: "今天的联调反馈我汇总好了，会上可以按这版核对。", kind: "note" },
-  feedbackSheet: { name: "联调反馈汇总.xlsx", source: "feedback", body: "本地已下载 · 64 KB", kind: "file", icon: "X" },
+  feedbackSheet: {
+    name: "联调反馈汇总.xlsx", source: "feedback", body: "本地已下载 · 64 KB", kind: "file", icon: "X",
+    candidates: [
+      { path: String.raw`D:\钉钉下载\支付联调\联调反馈汇总.xlsx`, size: "64 KB" },
+      { path: String.raw`D:\团队共享\反馈记录\联调反馈汇总.xlsx`, size: "64 KB" },
+    ],
+  },
   launchNote: { name: "上线交接备注", source: "launch", body: "明早上线前一起过一遍值班安排，交接表我放群里了。", kind: "note" },
   launchFile: { name: "上线值班交接.pdf", source: "launch", body: "本地已下载 · 192 KB", kind: "file", icon: "P" },
 };
-const rank = { conflict: 0, choose: 1, source: 1, missing: 2, query: 3, failed: 4 };
-const stateLabels = { choose: "待归档", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
+const rank = { conflict: 0, confirm: 1, choose: 2, source: 2, missing: 3, query: 4, failed: 5 };
+const stateLabels = { confirm: "待确认原件", choose: "待归档", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
+const missingLabel = "未下载或本地未找到";
 const sourceMime = "application/x-snapstow-source";
 const lineMime = "application/x-snapstow-connection";
 const copying = new Map();
@@ -98,6 +106,7 @@ const captureStyles = [
 ];
 
 let projects, assignment, records, pending, merged, conflict;
+let fixtures, outgoingCount, outgoingLinks, revealPendingKey;
 let root, shortcut, channel, queuePage, boxPage, selected, viewing, sourceSelection, composing;
 let chatOrder, clientRooms, chatOffset, folderView;
 let chatDrag = null;
@@ -124,6 +133,10 @@ function resetState() {
   clearTimeout(openTimer);
   copying.clear();
   sourceCaptures.clear();
+  fixtures = { ...sampleFixtures };
+  outgoingCount = 0;
+  outgoingLinks = new Map([["dev\n" + environmentUrl, "link"]]);
+  revealPendingKey = undefined;
   for (const key of historicalCaptures) sourceCaptures.set(key, { src: "./art/source/" + key + ".png" });
   projects = new Map([["pay", "支付改版"], ["sync", "支付联调"], ["launch", "上线准备"], ["handoff", "运维交接"]]);
   assignment = new Map([["dev", "pay"], ["feedback", "pay"], ["launch", "launch"]]);
@@ -156,6 +169,37 @@ function art(name, className) {
   image.alt = "";
   image.draggable = false;
   return image;
+}
+
+function registerMessage(text) {
+  const id = "sent-" + (++outgoingCount);
+  const links = new Set();
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"'“”‘’，。；！？、）】]+/giu)) {
+    const candidate = match[0].replace(/[.,;!?)\]}]+$/u, "");
+    try { links.add(new URL(candidate).href); } catch { /* Ignore incomplete URLs. */ }
+  }
+  const label = text.split(/https?:\/\//iu)[0].trim().replace(/[：:是=\s]+$/u, "").slice(0, 32);
+  const includes = [];
+  for (const url of links) {
+    const identity = channel + "\n" + url;
+    let key = outgoingLinks.get(identity);
+    if (!key) {
+      key = id + "-link-" + includes.length;
+      fixtures[key] = { name: links.size === 1 && label ? label : url, body: url, kind: "link", source: channel };
+      outgoingLinks.set(identity, key);
+    }
+    includes.push(key);
+  }
+  fixtures[id] = { name: text.length > 34 ? text.slice(0, 34) + "…" : text, body: text, kind: "note", source: channel };
+  if (includes.length) fixtures[id].includes = includes;
+  return id;
+}
+
+function outgoingMessage(key) {
+  const bubble = node("button", "sent user-sent", fixtures[key].body);
+  bubble.type = "button";
+  bubble.dataset.item = key;
+  return bubble;
 }
 
 function announce(text = "") {
@@ -195,7 +239,7 @@ function filterChatRooms() {
   let matches = 0;
   for (const button of chat.querySelectorAll("[data-channel]")) {
     const room = button.dataset.channel;
-    const last = composing[room].at(-1) || sampleReplies[room] || fixtures[channels[room].at(-1)].name;
+    const last = fixtures[composing[room].at(-1)]?.body || sampleReplies[room] || fixtures[channels[room].at(-1)].name;
     button.hidden = !profile.groups.includes(room) || !names[room].toLocaleLowerCase().includes(query);
     button.querySelector("small").textContent = last;
     button.setAttribute("aria-pressed", String(room === channel));
@@ -259,7 +303,7 @@ function renderChat() {
   messageItems.replaceChildren(...channels[channel].map(chatMessage));
   messages.querySelectorAll(".sent").forEach((item) => item.remove());
   if (sampleReplies[channel]) messages.insertBefore(node("p", "sent", sampleReplies[channel]), selection);
-  for (const line of composing[channel]) messages.insertBefore(node("p", "sent", line), selection);
+  for (const key of composing[channel]) messages.insertBefore(outgoingMessage(key), selection);
   messages.scrollTop = 0;
   showChatDetail(client === "wecom" && chatStack.clientWidth >= 520 ? "members" : null);
 }
@@ -298,7 +342,7 @@ function showChat(open) {
 }
 
 function startCapture() {
-  if (!running || !bench.hidden || folder.open) return;
+  if (!running || !bench.hidden || folder.open || sourceChoice.open) return;
   if (!chatOpen) showChat(true);
   if (screen.clientWidth <= 1030 && !chatDetail.hidden) showChatDetail(null);
   captureActive = true;
@@ -306,7 +350,6 @@ function startCapture() {
   capture.setAttribute("aria-pressed", "true");
   capture.title = "退出圈选 · Esc";
   desktopCue.textContent = "拖框圈住要收的消息。";
-  messages.scrollTop = 0;
 }
 
 function stopCapture() {
@@ -368,7 +411,7 @@ function chatItemBounds(item) {
 
 function captureItems(keys, rect) {
   stopCapture();
-  const eligible = keys.flatMap((item) => fixtures[item].includes || [item])
+  const eligible = [...new Set(keys.flatMap((item) => fixtures[item].includes || [item]))]
     .filter((key) => !records.has(key) && !copying.has(key));
   if (!eligible.length) return;
   const screenshot = { src: "", loading: true };
@@ -386,9 +429,11 @@ function captureItems(keys, rect) {
     sourceCaptures.set(key, screenshot);
     const item = fixtures[key];
     const project = assignment.get(item.source);
-    if (item.kind === "missing") pending.set(key, "missing");
-    else if (!project) pending.set(key, "choose");
-    else if (item.kind === "file") beginCopy(key, project);
+    const state = item.kind === "missing" ? "missing" : item.candidates ? "confirm" : !project ? "choose" : null;
+    if (state) {
+      revealPendingKey = key;
+      pending.set(key, state);
+    } else if (item.kind === "file") beginCopy(key, project, newName(key, project));
     else records.set(key, { project, name: item.name });
   }
 }
@@ -413,7 +458,7 @@ function rectangle(to) {
 
 function covered(rect) {
   const bounds = messages.getBoundingClientRect();
-  return [...messageItems.children].filter((item) => {
+  return [...messages.querySelectorAll("[data-item]")].filter((item) => {
     const card = item.getBoundingClientRect();
     const horizontal = Math.min(bounds.left + rect.left + rect.width, card.right) - Math.max(bounds.left + rect.left, card.left);
     const vertical = Math.min(bounds.top + rect.top + rect.height, card.bottom) - Math.max(bounds.top + rect.top, card.top);
@@ -445,10 +490,12 @@ function fileCard(key, state, inArchive = false) {
   button.append(art(state === "source" ? "checklist" : "paper"), node("strong", "", name));
   let singleState = stateLabels[state];
   if (state === "missing") {
-    button.append(art("download-missing", "missing-mark"));
-    singleState = "未下载或本地未找到";
+    const mark = node("span", "missing-mark");
+    mark.setAttribute("aria-hidden", "true");
+    button.append(mark);
+    singleState = missingLabel;
   } else if (singleState) {
-    const neutral = state === "choose" || state === "source";
+    const neutral = state === "choose" || state === "confirm" || state === "source";
     button.append(node("span", neutral ? "file-state neutral" : "file-state", singleState));
   }
   if (!inArchive) {
@@ -464,7 +511,6 @@ function fileCard(key, state, inArchive = false) {
   if (state === "history") singleState = "历史副本";
   const description = singleState ? name + " · " + singleState : name;
   button.setAttribute("aria-label", description);
-  button.title = description;
   return button;
 }
 
@@ -488,6 +534,9 @@ function renderQueue() {
   const size = pageSize();
   lastQueueSize = size;
   const keys = [...pending.keys()].sort((a, b) => rank[pending.get(a)] - rank[pending.get(b)]);
+  const reveal = keys.indexOf(revealPendingKey);
+  if (reveal >= 0) queuePage = Math.floor(reveal / size);
+  revealPendingKey = undefined;
   const last = Math.max(0, Math.ceil(keys.length / size) - 1);
   queuePage = Math.min(queuePage, last);
   const page = keys.slice(queuePage * size, (queuePage + 1) * size);
@@ -585,13 +634,13 @@ function showBench(open) {
   }
 }
 
-function beginCopy(key, project, name = fixtures[key].name) {
+function beginCopy(key, project, name = fixtures[key].name, original) {
   if (copying.has(key)) return;
   const wasPending = pending.delete(key);
-  const task = { project, name };
+  const task = { project, name, original };
   task.timer = setTimeout(() => {
     copying.delete(key);
-    records.set(key, { project: task.project, name: task.name });
+    records.set(key, { project: task.project, name: task.name, original: task.original });
     if (!bench.hidden) {
       syncCopyBadges();
       if (archive.open && viewing === task.project) renderArchive();
@@ -603,6 +652,26 @@ function beginCopy(key, project, name = fixtures[key].name) {
     syncCopyBadges();
     if (archive.open && viewing === project) renderArchive();
   }
+}
+
+function showSourceChoice(key) {
+  const item = fixtures[key];
+  const project = assignment.get(item.source);
+  byId("source-choice-context").textContent = item.name + " · 归档到「" + projects.get(project) + "」";
+  byId("source-choices").replaceChildren(...item.candidates.map(({ path, size }) => {
+    const entry = node("li");
+    const button = node("button", "explorer-row");
+    button.type = "button";
+    button.append(node("span", "entry-name", path), node("small", "", size));
+    button.addEventListener("click", () => {
+      sourceChoice.close();
+      beginCopy(key, project, newName(key, project), path);
+      boxes.querySelector('[data-project="' + project + '"]')?.focus({ preventScroll: true });
+    });
+    entry.append(button);
+    return entry;
+  }));
+  sourceChoice.showModal();
 }
 
 function newName(key, project) {
@@ -821,6 +890,12 @@ function showPreview(target) {
   preview.classList.toggle("has-screenshot", Boolean(sourceCapture?.src));
   const description = node("div", "preview-description");
   description.append(node("strong", "", title), node("span", "", text));
+  const item = fixtures[key];
+  const state = pending.get(key);
+  const original = records.get(key)?.original;
+  if (item?.kind === "link" && item.body !== title) description.append(node("span", "", item.body));
+  if (original) description.append(node("span", "", "原件位置 · " + original));
+  if (state === "missing") description.append(node("span", "", missingLabel));
   preview.replaceChildren(description);
   if (sourceCapture?.src) {
     const frame = node("figure", "source-image");
@@ -1085,6 +1160,7 @@ function setRunning(active) {
 function reset() {
   closeArchive(false);
   if (folder.open) folder.close();
+  if (sourceChoice.open) sourceChoice.close();
   resetState();
   setRunning(true);
   showBench(false);
@@ -1176,14 +1252,15 @@ byId("chat-form").addEventListener("submit", (event) => {
   const text = input.value.trim();
   if (!text) return;
   stopCapture();
-  composing[channel].push(text);
+  const key = registerMessage(text);
+  composing[channel].push(key);
   filterChatRooms();
-  messages.insertBefore(node("p", "sent", text), selection);
+  messages.insertBefore(outgoingMessage(key), selection);
   messages.scrollTop = messages.scrollHeight;
   input.value = "";
   input.focus({ preventScroll: true });
 });
-messageItems.addEventListener("click", (event) => {
+messages.addEventListener("click", (event) => {
   const item = event.target.closest("[data-item]");
   if (item && !suppressMessageClick && running) captureItems([item.dataset.item], chatItemBounds(item));
 });
@@ -1454,8 +1531,10 @@ queue.addEventListener("click", (event) => {
   const key = card.dataset.pending;
   const state = pending.get(key);
   if (lensMode || state === "missing") {
-    if (state === "missing") announce(labelFor(key) + "尚未下载");
+    if (state === "missing") announce(labelFor(key) + " · " + missingLabel);
     showPreview(card);
+  } else if (state === "confirm") {
+    showSourceChoice(key);
   } else if (state === "query" || state === "failed") {
     beginCopy(key, assignment.get(sourceOf(key)) || "pay");
     (queue.querySelector("button") || byId("bench-home")).focus({ preventScroll: true });
@@ -1626,7 +1705,7 @@ for (const event of ["pointerout", "focusout"]) {
   });
 }
 document.addEventListener("keydown", (event) => {
-  if (event.defaultPrevented || folder.open) return;
+  if (event.defaultPrevented || folder.open || sourceChoice.open) return;
   if (event.key === "Escape") {
     if (fileDrag) clearFileDrag();
     else if (!trayMenu.hidden) {
