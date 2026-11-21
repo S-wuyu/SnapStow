@@ -5,6 +5,8 @@ const screen = byId("screen");
 const chat = byId("chat-window");
 const chatStack = byId("chat-stack");
 const chatHandle = byId("chat-handle");
+const chatDetail = byId("chat-detail");
+const threadSearch = byId("thread-search");
 const bench = byId("workbench");
 const messages = byId("messages");
 const messageItems = byId("message-items");
@@ -52,9 +54,14 @@ const channels = {
   launch: ["launchNote", "launchFile"],
 };
 const clients = {
-  wechat: { title: "微信", groups: ["dev", "temp"], sender: "林一" },
-  dingtalk: { title: "钉钉", groups: ["feedback"], sender: "许舟" },
-  wecom: { title: "企业微信", groups: ["launch"], sender: "周宁" },
+  wechat: { title: "微信", groups: ["dev", "temp"], sender: "林一", members: ["林一", "李梓", "夏然"], heading: "最近会话", workspace: "" },
+  dingtalk: { title: "钉钉", groups: ["feedback"], sender: "许舟", members: ["许舟", "赵乔", "白薇"], heading: "协作消息", workspace: "产品研发 · 项目群" },
+  wecom: { title: "企业微信", groups: ["launch"], sender: "周宁", members: ["周宁", "赵乔", "徐遥", "顾凡"], heading: "消息", workspace: "研发中心 · 内部群" },
+};
+const sampleReplies = {
+  dev: "收到，我按清单验证一下。",
+  feedback: "收到，复测结果我会补到表里。",
+  launch: "交接表收到了，明早见。",
 };
 const fixtures = {
   note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
@@ -182,6 +189,54 @@ function chatMessage(key) {
   return button;
 }
 
+function filterChatRooms() {
+  const profile = clients[chatOrder[0]];
+  const query = threadSearch.value.trim().toLocaleLowerCase();
+  let matches = 0;
+  for (const button of chat.querySelectorAll("[data-channel]")) {
+    const room = button.dataset.channel;
+    const last = composing[room].at(-1) || sampleReplies[room] || fixtures[channels[room].at(-1)].name;
+    button.hidden = !profile.groups.includes(room) || !names[room].toLocaleLowerCase().includes(query);
+    button.querySelector("small").textContent = last;
+    button.setAttribute("aria-pressed", String(room === channel));
+    if (!button.hidden) matches++;
+  }
+  byId("threads-empty").hidden = matches > 0;
+}
+
+function showChatDetail(mode) {
+  chatDetail.hidden = !mode;
+  chatDetail.dataset.mode = mode || "";
+  for (const control of chat.querySelectorAll('[aria-controls="chat-detail"]')) {
+    control.setAttribute("aria-expanded", String(control.dataset.chatAction === mode));
+  }
+  if (!mode) return;
+  const list = byId("chat-detail-list");
+  list.replaceChildren();
+  if (mode === "members") {
+    const { members } = clients[chatOrder[0]];
+    byId("chat-detail-title").textContent = "群成员 · " + members.length;
+    for (const name of members) {
+      const entry = node("li");
+      const avatar = node("span", "avatar", name[0]);
+      avatar.setAttribute("aria-hidden", "true");
+      entry.append(avatar, node("span", "", name));
+      list.append(entry);
+    }
+  } else {
+    byId("chat-detail-title").textContent = "群文件";
+    for (const key of channels[channel]) {
+      if (!fixtures[key].icon) continue;
+      const entry = node("li");
+      const button = node("button", "chat-command", fixtures[key].name);
+      button.type = "button";
+      button.dataset.jumpMessage = key;
+      entry.append(button);
+      list.append(entry);
+    }
+  }
+}
+
 function renderChat() {
   const client = chatOrder[0];
   const profile = clients[client];
@@ -190,10 +245,12 @@ function renderChat() {
   byId("sender-name").textContent = profile.sender;
   byId("sender-avatar").textContent = profile.sender[0];
   byId("chat-title").textContent = names[channel];
-  for (const button of chat.querySelectorAll("[data-channel]")) {
-    button.hidden = !profile.groups.includes(button.dataset.channel);
-    button.setAttribute("aria-pressed", String(button.dataset.channel === channel));
-  }
+  byId("chat-meta").textContent = profile.workspace;
+  byId("chat-meta").hidden = !profile.workspace;
+  byId("threads-heading").textContent = profile.heading;
+  byId("chat-notice").hidden = client !== "dingtalk";
+  byId("chat-notice").open = false;
+  filterChatRooms();
   for (const tab of chatStack.querySelectorAll(".chat-back")) {
     const depth = chatOrder.indexOf(tab.dataset.client);
     tab.hidden = depth === 0;
@@ -201,8 +258,10 @@ function renderChat() {
   }
   messageItems.replaceChildren(...channels[channel].map(chatMessage));
   messages.querySelectorAll(".sent").forEach((item) => item.remove());
+  if (sampleReplies[channel]) messages.insertBefore(node("p", "sent", sampleReplies[channel]), selection);
   for (const line of composing[channel]) messages.insertBefore(node("p", "sent", line), selection);
   messages.scrollTop = 0;
+  showChatDetail(client === "wecom" && chatStack.clientWidth >= 520 ? "members" : null);
 }
 
 function moveChat(x, y) {
@@ -241,6 +300,7 @@ function showChat(open) {
 function startCapture() {
   if (!running || !bench.hidden || folder.open) return;
   if (!chatOpen) showChat(true);
+  if (screen.clientWidth <= 1030 && !chatDetail.hidden) showChatDetail(null);
   captureActive = true;
   chat.classList.add("is-capturing");
   capture.setAttribute("aria-pressed", "true");
@@ -470,16 +530,18 @@ function syncCopyBadges() {
 
 function syncLine() {
   const line = byId("association");
-  const from = conflict?.linked && queue.querySelector('[data-pending="' + conflict.linked + '"]');
+  const movingFile = conflict?.linked === fileDrag?.key && fileDrag?.ghost;
+  const from = movingFile || (conflict?.linked && queue.querySelector('[data-pending="' + conflict.linked + '"]'));
   const to = conflict && boxes.querySelector('[data-project="' + conflict.target + '"]');
   const visible = Boolean(!bench.hidden && !settingsOpen && !archive.open && from && to);
-  line.hidden = cut.hidden = !visible;
+  line.hidden = !visible;
+  cut.hidden = !visible || Boolean(movingFile);
   if (!visible) return;
   const boardRect = board.getBoundingClientRect();
   const origin = from.getBoundingClientRect();
   const end = to.getBoundingClientRect();
   const x = origin.left + origin.width / 2 - boardRect.left;
-  const y = origin.bottom - boardRect.top;
+  const y = (movingFile && origin.top > end.top ? origin.top : origin.bottom) - boardRect.top;
   const dx = end.left + end.width / 2 - boardRect.left - x;
   const dy = end.top - boardRect.top - y;
   line.style.setProperty("--x", x + "px");
@@ -733,6 +795,7 @@ function setLens(enabled) {
 }
 
 function showPreview(target) {
+  const anchorChanged = target !== previewTarget;
   previewTarget = undefined;
   preview.hidden = true;
   if (!lensMode || !target?.isConnected) {
@@ -756,7 +819,9 @@ function showPreview(target) {
   if (!title) return;
   previewTarget = target;
   preview.classList.toggle("has-screenshot", Boolean(sourceCapture?.src));
-  preview.replaceChildren(node("strong", "", title), node("span", "", text));
+  const description = node("div", "preview-description");
+  description.append(node("strong", "", title), node("span", "", text));
+  preview.replaceChildren(description);
   if (sourceCapture?.src) {
     const frame = node("figure", "source-image");
     const image = node("img");
@@ -764,35 +829,61 @@ function showPreview(target) {
     image.addEventListener("load", () => { if (previewTarget === target) positionPreview(target); }, { once: true });
     image.addEventListener("error", () => {
       if (previewTarget !== target || !frame.isConnected) return;
-      frame.replaceChildren(node("span", "", "没有可预览的来源截图"));
+      frame.remove();
+      description.append(node("span", "", "没有可预览的来源截图"));
       preview.classList.remove("has-screenshot");
       positionPreview(target);
     }, { once: true });
     image.src = sourceCapture.src;
     frame.append(image);
-    preview.append(frame);
+    preview.prepend(frame);
   } else if (fixtures[key]) {
-    preview.append(node("span", "", sourceCapture?.loading ? "正在准备来源截图…" : "没有可预览的来源截图"));
+    description.append(node("span", "", sourceCapture?.loading ? "正在准备来源截图…" : "没有可预览的来源截图"));
   }
   preview.hidden = false;
   positionPreview(target);
+  if (anchorChanged && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    preview.getAnimations().forEach((animation) => animation.cancel());
+    preview.animate([{ opacity: 0, scale: ".93" }, { opacity: 1, scale: "1" }], { duration: 125, easing: "ease-out" });
+  }
 }
 
 function positionPreview(target) {
   const frame = byId("bench-main").getBoundingClientRect();
   const card = target.getBoundingClientRect();
+  const margin = 8;
+  const gap = 9;
+  const x = card.left - frame.left;
+  const y = card.top - frame.top;
+  const centerX = x + card.width / 2;
+  const centerY = y + card.height / 2;
+  const leftSpace = x - gap - margin;
+  const rightSpace = frame.width - x - card.width - gap - margin;
+  const topSpace = y - gap - margin;
+  const bottomSpace = frame.height - y - card.height - gap - margin;
+  const idealWidth = preview.classList.contains("has-screenshot") ? 340 : 238;
+  const beside = Math.max(leftSpace, rightSpace) >= Math.min(220, idealWidth);
+  const side = beside
+    ? (rightSpace >= leftSpace ? "right" : "left")
+    : (bottomSpace >= topSpace ? "bottom" : "top");
+  const availableWidth = beside ? Math.max(leftSpace, rightSpace) : frame.width - 2 * margin;
+  const availableHeight = beside ? frame.height - 2 * margin : Math.max(topSpace, bottomSpace);
+  preview.dataset.side = side;
+  preview.style.setProperty("--preview-width", Math.min(idealWidth, availableWidth) + "px");
+  preview.style.setProperty("--photo-height", Math.max(40, Math.min(220, availableHeight - 65)) + "px");
   const width = preview.offsetWidth;
   const height = preview.offsetHeight;
-  const right = card.right - frame.left + 8;
-  const leftSide = card.left - frame.left - width - 8;
-  const fitsBeside = right + width <= frame.width - 6 || leftSide >= 6;
-  const left = right + width <= frame.width - 6 ? right : Math.max(6, leftSide);
-  const below = card.bottom - frame.top + 8;
-  const above = card.top - frame.top - height - 8;
-  const offset = fitsBeside ? card.top - frame.top + card.height * .35 : (below + height <= frame.height ? below : above);
-  const top = Math.max(6, Math.min(frame.height - height - 6, offset));
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const left = beside
+    ? (side === "right" ? x + card.width + gap : x - width - gap)
+    : clamp(centerX - width / 2, margin, frame.width - width - margin);
+  const top = beside
+    ? clamp(centerY - height / 2, margin, frame.height - height - margin)
+    : (side === "bottom" ? y + card.height + gap : y - height - gap);
+  const tip = beside ? clamp(centerY - top, 12, height - 12) : clamp(centerX - left, 12, width - 12);
   preview.style.left = left + "px";
   preview.style.top = top + "px";
+  preview.style.setProperty("--tip", tip + "px");
 }
 
 function resetWarehouseDoor() {
@@ -801,6 +892,11 @@ function resetWarehouseDoor() {
   doorDrag = null;
   warehouseDoor.classList.remove("rolling");
   warehouseDoor.style.removeProperty("--door-lift");
+}
+
+function updateWarehouseDirectory() {
+  byId("root-label").textContent = root || "工作总目录";
+  byId("root-picker").title = root || "选择工作总目录";
 }
 
 function showSettings(open) {
@@ -817,8 +913,7 @@ function showSettings(open) {
   byId("settings-page").hidden = !open;
   byId("settings").setAttribute("aria-pressed", String(open));
   byId("lens").disabled = open;
-  byId("root-picker").textContent = root || "工作总目录";
-  byId("root-picker").title = root || "选择工作总目录";
+  updateWarehouseDirectory();
   byId("shortcut").textContent = shortcut.replaceAll("+", " + ");
   syncLine();
 }
@@ -1001,6 +1096,7 @@ function reset() {
   chatStack.inert = false;
   capture.setAttribute("aria-keyshortcuts", shortcut);
   byId("reply").value = "";
+  threadSearch.value = "";
   renderChat();
 }
 
@@ -1023,6 +1119,7 @@ chatStack.querySelector(".chat-sides").addEventListener("click", (event) => {
   const client = tab.dataset.client;
   chatOrder = [client, ...chatOrder.filter((id) => id !== client)];
   channel = clientRooms.get(client);
+  threadSearch.value = "";
   renderChat();
   if (event.detail === 0) chatHandle.focus({ preventScroll: true });
 });
@@ -1058,6 +1155,21 @@ chat.querySelector(".channels").addEventListener("click", (event) => {
   channel = button.dataset.channel;
   renderChat();
 });
+threadSearch.addEventListener("input", filterChatRooms);
+chat.addEventListener("click", (event) => {
+  const action = event.target.closest("[data-chat-action]")?.dataset.chatAction;
+  const key = event.target.closest("[data-jump-message]")?.dataset.jumpMessage;
+  if (action === "threads") threadSearch.focus();
+  else if (action === "close") showChatDetail(null);
+  else if (action === "latest") messages.scrollTop = messages.scrollHeight;
+  else if (action) showChatDetail(chatDetail.dataset.mode === action ? null : action);
+  else if (key) {
+    showChatDetail(null);
+    const message = messageItems.querySelector('[data-item="' + key + '"]');
+    message.scrollIntoView({ block: "nearest" });
+    message.focus({ preventScroll: true });
+  }
+});
 byId("chat-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const input = byId("reply");
@@ -1065,6 +1177,7 @@ byId("chat-form").addEventListener("submit", (event) => {
   if (!text) return;
   stopCapture();
   composing[channel].push(text);
+  filterChatRooms();
   messages.insertBefore(node("p", "sent", text), selection);
   messages.scrollTop = messages.scrollHeight;
   input.value = "";
@@ -1158,8 +1271,7 @@ byId("explorer-back").addEventListener("click", () => {
 directoryButton.addEventListener("click", () => {
   if (!folderView.choose || folderView.path === computer) return;
   root = folderView.path;
-  byId("root-picker").textContent = root;
-  byId("root-picker").title = root;
+  updateWarehouseDirectory();
   folder.close();
 });
 byId("shortcut").addEventListener("click", () => {
@@ -1277,12 +1389,14 @@ function updateFileDropTarget(drag, event) {
 
 function clearFileDrag() {
   if (!fileDrag) return;
+  const followed = conflict?.linked === fileDrag.key && fileDrag.ghost;
   fileDrag.card.classList.remove("drag-origin");
   fileDrag.project?.classList.remove("drop-target");
   fileDrag.ghost?.remove();
   dropBin.hidden = true;
   dropBin.removeAttribute("data-hit");
   fileDrag = null;
+  if (followed) syncLine();
 }
 
 document.addEventListener("pointermove", (event) => {
@@ -1313,6 +1427,7 @@ document.addEventListener("pointermove", (event) => {
     ? hit.top - drag.previewHeight * .32
     : event.clientY - (drag.y - drag.rect.top) * drag.previewHeight / drag.rect.height;
   drag.ghost.style.translate = (left - bounds.left) + "px " + (top - bounds.top) + "px";
+  if (conflict?.linked === drag.key) syncLine();
 });
 
 document.addEventListener("pointerup", (event) => {
@@ -1491,8 +1606,18 @@ underlay.addEventListener("drop", (event) => {
 });
 
 const inspectable = "[data-pending], [data-project], [data-archived], [data-source]";
+archiveContent.addEventListener("scroll", () => {
+  if (!previewTarget || !archiveContent.contains(previewTarget)) return;
+  const clip = archiveContent.getBoundingClientRect();
+  const card = previewTarget.getBoundingClientRect();
+  if (card.bottom <= clip.top || card.top >= clip.bottom) showPreview();
+  else positionPreview(previewTarget);
+}, { passive: true });
 for (const event of ["pointerover", "focusin"]) {
-  bench.addEventListener(event, (input) => showPreview(input.target.closest(inspectable)));
+  bench.addEventListener(event, (input) => {
+    const target = input.target.closest(inspectable);
+    if (target !== previewTarget) showPreview(target);
+  });
 }
 for (const event of ["pointerout", "focusout"]) {
   bench.addEventListener(event, (input) => {
@@ -1528,6 +1653,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 new ResizeObserver(() => {
+  if (previewTarget?.isConnected && !preview.hidden) positionPreview(previewTarget);
   if (bench.hidden || settingsOpen || archive.open) return;
   if (pageSize() !== lastQueueSize) renderQueue();
   else syncLine();
