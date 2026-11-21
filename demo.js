@@ -52,18 +52,27 @@ const fixtures = {
   credential: { name: "支付联调测试账号", source: "dev", body: environmentChat, kind: "credential" },
   missing: { name: "回归录屏.mp4", source: "dev", body: "尚未下载 · 8.4 MB", kind: "missing", icon: "↓" },
   brief: { name: "联调记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
-  old: { name: "接口清单.xlsx", source: "dev", body: "旧版 · 26 KB", kind: "file" },
-  new: { name: "接口清单.xlsx", source: "dev", body: "新版 · 34 KB", kind: "file" },
-  review: { name: "验收记录.pdf", source: "temp", body: "待归属 · 126 KB", kind: "file" },
+  old: { name: "接口清单.xlsx", source: "dev", body: "旧版 · 26 KB", kind: "file", icon: "X" },
+  new: { name: "接口清单.xlsx", source: "dev", body: "新版 · 34 KB", kind: "file", icon: "X" },
+  review: { name: "验收记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
   feedback: { name: "反馈记录.md", source: "feedback", body: "空状态文案和按钮分组已复核。", kind: "note" },
-  query: { name: "交接说明.docx", source: "launch", body: "本地查询中断 · 上线准备", kind: "file" },
-  failed: { name: "回归记录.xlsx", source: "dev", body: "目标项目 · 支付改版", kind: "file" },
+  query: { name: "交接说明.docx", source: "launch", body: "上线准备 · 32 KB", kind: "file", icon: "W" },
+  failed: { name: "回归记录.xlsx", source: "dev", body: "本地已下载 · 52 KB", kind: "file", icon: "X" },
 };
 const rank = { conflict: 0, choose: 1, source: 1, missing: 2, query: 3, failed: 4 };
 const stateLabels = { choose: "待选项目", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
 const sourceMime = "application/x-snapstow-source";
 const lineMime = "application/x-snapstow-connection";
 const copying = new Map();
+const sourceCaptures = new Map();
+const historicalCaptures = ["old", "new", "review", "feedback", "query", "failed"];
+const captureStyles = [
+  "display", "box-sizing", "width", "height", "min-width", "min-height", "max-width",
+  "margin", "padding", "border", "border-radius", "background-color",
+  "color", "font-family", "font-size", "font-weight", "font-style", "line-height",
+  "letter-spacing", "text-align", "white-space", "overflow-wrap",
+  "align-content", "align-items", "justify-content", "justify-items", "flex", "gap",
+];
 
 let projects, assignment, records, pending, merged, conflict;
 let root, shortcut, channel, queuePage, boxPage, selected, viewing, sourceSelection, composing;
@@ -81,6 +90,7 @@ let doorTimer;
 let suppressDoorClick = false;
 let suppressMessageClick = false;
 let previousFocus;
+let previewTarget;
 let openTimer;
 let lastQueueSize;
 
@@ -88,6 +98,8 @@ function resetState() {
   for (const task of copying.values()) clearTimeout(task.timer);
   clearTimeout(openTimer);
   copying.clear();
+  sourceCaptures.clear();
+  for (const key of historicalCaptures) sourceCaptures.set(key, { src: "./art/source/" + key + ".png" });
   projects = new Map([["pay", "支付改版"], ["sync", "支付联调"], ["launch", "上线准备"], ["handoff", "运维交接"]]);
   assignment = new Map([["dev", "pay"], ["feedback", "pay"], ["launch", "launch"]]);
   records = new Map([["old", { project: "pay", name: fixtures.old.name }], ["feedback", { project: "pay", name: fixtures.feedback.name }]]);
@@ -129,30 +141,31 @@ function recordNames(project) {
   return [...records].filter(([, entry]) => entry.project === project).map(([key, entry]) => [key, entry.name]);
 }
 
+function chatMessage(key) {
+  const item = fixtures[key];
+  const button = node("button", "message " + item.kind);
+  button.type = "button";
+  button.dataset.item = key;
+  button.title = "圈选" + (item.kind === "note" ? "这条备注" : item.name);
+  if (item.kind !== "environment") button.setAttribute("aria-label", button.title);
+  if (item.icon) {
+    const icon = node("i", "material-icon " + item.kind, item.icon);
+    icon.setAttribute("aria-hidden", "true");
+    const description = node("span");
+    description.append(node("strong", "", item.name), node("small", "", item.body));
+    button.append(icon, description);
+  } else {
+    button.append(node("span", "chat-text", item.body));
+  }
+  return button;
+}
+
 function renderChat() {
   byId("chat-title").textContent = names[channel];
   for (const button of chat.querySelectorAll("[data-channel]")) {
     button.setAttribute("aria-pressed", String(button.dataset.channel === channel));
   }
-  messageItems.replaceChildren();
-  for (const key of channels[channel]) {
-    const item = fixtures[key];
-    const button = node("button", "message " + item.kind);
-    button.type = "button";
-    button.dataset.item = key;
-    button.title = "圈选" + (item.kind === "note" ? "这条备注" : item.name);
-    if (item.kind !== "environment") button.setAttribute("aria-label", button.title);
-    if (item.icon) {
-      const icon = node("i", "material-icon " + item.kind, item.icon);
-      icon.setAttribute("aria-hidden", "true");
-      const description = node("span");
-      description.append(node("strong", "", item.name), node("small", "", item.body));
-      button.append(icon, description);
-    } else {
-      button.append(node("span", "chat-text", item.body));
-    }
-    messageItems.append(button);
-  }
+  messageItems.replaceChildren(...channels[channel].map(chatMessage));
   messages.querySelectorAll(".sent").forEach((item) => item.remove());
   for (const line of composing[channel]) messages.insertBefore(node("p", "sent", line), selection);
   messages.scrollTop = 0;
@@ -188,10 +201,69 @@ function stopCapture() {
   if (desktopCue.textContent !== desktopTagline) desktopCue.textContent = desktopTagline;
 }
 
-function captureItems(keys) {
+async function screenshotChat(rect) {
+  // Freeze the demo chat and clip it to the selected rectangle inside an image.
+  const content = messages.cloneNode(true);
+  content.querySelector("#selection").remove();
+  const originals = [messages, ...messages.querySelectorAll(":not(#selection, #selection *)")];
+  const copies = [content, ...content.querySelectorAll("*")];
+  for (const [index, copy] of copies.entries()) {
+    const style = getComputedStyle(originals[index]);
+    for (const property of captureStyles) copy.style.setProperty(property, style.getPropertyValue(property));
+  }
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+  Object.assign(content.style, {
+    position: "absolute",
+    left: -rect.left + "px",
+    top: -(rect.top + messages.scrollTop) + "px",
+    width: messages.clientWidth + "px",
+    height: messages.scrollHeight + "px",
+  });
+  const markup = new XMLSerializer().serializeToString(content);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height
+    + '"><foreignObject width="' + width + '" height="' + height + '">' + markup + '</foreignObject></svg>';
+  const bitmap = new Image();
+  bitmap.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  await bitmap.decode();
+  const canvas = node("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+function chatItemBounds(item) {
+  const area = messages.getBoundingClientRect();
+  const card = item.getBoundingClientRect();
+  const left = Math.max(0, card.left - area.left - 6);
+  const top = Math.max(0, card.top - area.top - 6);
+  return {
+    left,
+    top,
+    width: Math.min(messages.clientWidth, card.right - area.left + 6) - left,
+    height: Math.min(messages.clientHeight, card.bottom - area.top + 6) - top,
+  };
+}
+
+function captureItems(keys, rect) {
   stopCapture();
-  for (const key of keys.flatMap((item) => fixtures[item].includes || [item])) {
-    if (records.has(key) || copying.has(key)) continue;
+  const eligible = keys.flatMap((item) => fixtures[item].includes || [item])
+    .filter((key) => !records.has(key) && !copying.has(key));
+  if (!eligible.length) return;
+  const screenshot = { src: "", loading: true };
+  screenshotChat(rect).then((src) => {
+    screenshot.src = src;
+  }).catch(() => {
+    screenshot.src = "";
+  }).finally(() => {
+    screenshot.loading = false;
+    if (previewTarget && sourceCaptures.get(previewTarget.dataset.pending || previewTarget.dataset.archived) === screenshot) {
+      showPreview(previewTarget);
+    }
+  });
+  for (const key of eligible) {
+    sourceCaptures.set(key, screenshot);
     const item = fixtures[key];
     const project = assignment.get(item.source);
     if (item.kind === "missing") pending.set(key, "missing");
@@ -369,6 +441,7 @@ function showBench(open) {
   closeTray();
   if (!open) {
     closeArchive(false);
+    if (lensMode) setLens(false);
     clearFileDrag();
     resetWarehouseDoor();
   }
@@ -474,6 +547,7 @@ function discard(key) {
     selected = null;
   }
   pending.delete(key);
+  if (!records.has(key)) sourceCaptures.delete(key);
   if (selected === key) selected = null;
   renderBench();
   if (focused) (queue.querySelector("button") || byId("bench-home")).focus({ preventScroll: true });
@@ -597,16 +671,19 @@ function setLens(enabled) {
 }
 
 function showPreview(target) {
+  previewTarget = undefined;
   preview.hidden = true;
-  if (!lensMode || !target) return;
+  if (!lensMode || !target?.isConnected) {
+    preview.replaceChildren();
+    return;
+  }
   const key = target.dataset.pending || target.dataset.archived;
   let title;
   let text;
-  const sourceCapture = fixtures[key]?.kind === "credential" && fixtures[key].body;
+  const sourceCapture = sourceCaptures.get(key);
   if (key) {
     title = records.get(key)?.name || labelFor(key);
-    text = names[sourceOf(key)];
-    if (!sourceCapture) text += " · " + (fixtures[key]?.body || "待迁来源");
+    text = names[sourceOf(key)] + (key.startsWith("source:") ? " · 待迁来源" : "");
   } else if (target.dataset.source) {
     title = names[target.dataset.source];
     text = "示例会话来源";
@@ -615,13 +692,43 @@ function showPreview(target) {
     text = "创建于 2026-11-20 · " + recordNames(target.dataset.project).length + " 项资料 · 0 个子目录";
   }
   if (!title) return;
+  previewTarget = target;
+  preview.classList.toggle("has-screenshot", Boolean(sourceCapture?.src));
   preview.replaceChildren(node("strong", "", title), node("span", "", text));
-  if (sourceCapture) preview.append(node("span", "chat-text source-snippet", sourceCapture));
+  if (sourceCapture?.src) {
+    const frame = node("figure", "source-image");
+    const image = node("img");
+    image.alt = title + "的圈选来源截图";
+    image.addEventListener("load", () => { if (previewTarget === target) positionPreview(target); }, { once: true });
+    image.addEventListener("error", () => {
+      if (previewTarget !== target || !frame.isConnected) return;
+      frame.replaceChildren(node("span", "", "没有可预览的来源截图"));
+      preview.classList.remove("has-screenshot");
+      positionPreview(target);
+    }, { once: true });
+    image.src = sourceCapture.src;
+    frame.append(image);
+    preview.append(frame);
+  } else if (fixtures[key]) {
+    preview.append(node("span", "", sourceCapture?.loading ? "正在准备来源截图…" : "没有可预览的来源截图"));
+  }
   preview.hidden = false;
+  positionPreview(target);
+}
+
+function positionPreview(target) {
   const frame = byId("bench-main").getBoundingClientRect();
   const card = target.getBoundingClientRect();
-  const left = Math.max(6, Math.min(frame.width - preview.offsetWidth - 6, card.right - frame.left + 8));
-  const top = Math.max(6, Math.min(frame.height - preview.offsetHeight - 6, card.top - frame.top + card.height * .6));
+  const width = preview.offsetWidth;
+  const height = preview.offsetHeight;
+  const right = card.right - frame.left + 8;
+  const leftSide = card.left - frame.left - width - 8;
+  const fitsBeside = right + width <= frame.width - 6 || leftSide >= 6;
+  const left = right + width <= frame.width - 6 ? right : Math.max(6, leftSide);
+  const below = card.bottom - frame.top + 8;
+  const above = card.top - frame.top - height - 8;
+  const offset = fitsBeside ? card.top - frame.top + card.height * .35 : (below + height <= frame.height ? below : above);
+  const top = Math.max(6, Math.min(frame.height - height - 6, offset));
   preview.style.left = left + "px";
   preview.style.top = top + "px";
 }
@@ -777,7 +884,7 @@ byId("chat-form").addEventListener("submit", (event) => {
 });
 messageItems.addEventListener("click", (event) => {
   const item = event.target.closest("[data-item]");
-  if (item && !suppressMessageClick && running) captureItems([item.dataset.item]);
+  if (item && !suppressMessageClick && running) captureItems([item.dataset.item], chatItemBounds(item));
 });
 messages.addEventListener("pointerdown", (event) => {
   if (!captureActive || captureDrag || event.button !== 0) return;
@@ -802,7 +909,7 @@ messages.addEventListener("pointerup", (event) => {
   if (!dragged && event.target.closest("[data-item]")) return;
   suppressMessageClick = dragged;
   setTimeout(() => { suppressMessageClick = false; }, 0);
-  captureItems(covered(rect));
+  captureItems(covered(rect), rect);
 });
 messages.addEventListener("lostpointercapture", (event) => {
   if (event.target === messages && captureDrag?.pointer === event.pointerId) stopCapture();
