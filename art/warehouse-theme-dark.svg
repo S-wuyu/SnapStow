@@ -1,0 +1,20 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="84" height="75" viewBox="0 0 84 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="&#230;&#156;&#168;&#231;&#137;&#140;&#227;&#128;&#129;&#230;&#140;&#130;&#231;&#187;&#179;&#228;&#184;&#142;&#232;&#135;&#170;&#231;&#187;&#152;&#230;&#151;&#165;&#230;&#156;&#136;">
+<path id="cord-shadow" d="M43 8C37 18 26.6667 28.3333 12 39M44 8C50.6667 20 60.6667 30.3333 74 39" stroke-width="3.2" stroke-linecap="round" stroke="#1F2935" stroke-opacity="0.28"/>
+<path id="hemp-cord" d="M11 38C25 29.3333 35.3333 19 42 7C50 19.6667 60.3333 30 73 38" stroke-width="1.6" stroke-linecap="round" stroke="#C6AA81"/>
+<path id="cord-loop" d="M39 8C39 3 46 3 46 8C46 10 44 12 42 11" stroke-width="1.2" stroke="#A99273"/>
+<path id="steel-nail" d="M42 9.3C43.8225 9.3 45.3 7.82254 45.3 6C45.3 4.17746 43.8225 2.7 42 2.7C40.1775 2.7 38.7 4.17746 38.7 6C38.7 7.82254 40.1775 9.3 42 9.3Z" fill="#697A8A" stroke-width="0.85" stroke="#364657"/>
+<path id="Vector" d="M40.7 5.2C41.1 4.5 42.1 4.3 42.9 4.5" stroke-width="0.7" stroke-linecap="round" stroke="#C8D3DD"/>
+<path id="sign-shadow" opacity="0.23" d="M7 38H78L82 43V67L77 72H10L6 68V43L7 38Z" fill="#263344"/>
+<path id="beveled-edge" d="M5 39H76L80 43V65L76 69H8L4 65V43L5 39Z" fill="#4C372B" stroke-width="0.9" stroke="#554033"/>
+<path id="wood-face" d="M8 36H74L78 40V63L74 67H8L4 63V40L8 36Z" fill="#75553C" stroke-width="1.05" stroke="#BE9B68"/>
+<path id="wood-grain" opacity="0.38" d="M8 43C18 42 23 42 32 43M50 42L74 43M7 59C21 59 36 58 49 58.8M57 61.8L73 61.6" stroke-width="0.7" stroke-linecap="round" stroke="#C29C71"/>
+<path id="Vector_2" d="M11 40.2C11.6627 40.2 12.2 39.6627 12.2 39C12.2 38.3373 11.6627 37.8 11 37.8C10.3373 37.8 9.8 38.3373 9.8 39C9.8 39.6627 10.3373 40.2 11 40.2Z" fill="#DBBF8D"/>
+<path id="Vector_3" d="M72 40.2C72.6627 40.2 73.2 39.6627 73.2 39C73.2 38.3373 72.6627 37.8 72 37.8C71.3373 37.8 70.8 38.3373 70.8 39C70.8 39.6627 71.3373 40.2 72 40.2Z" fill="#DBBF8D"/>
+<g id="sun-stamp">
+<path id="Vector_4" d="M28 40.6V43.4M28 59.6V62M17.3 51.3H20.1M35.7 51.3H38.5M20.5 43.8L22.4 45.8M33.6 57.1L35.5 58.9M35.5 43.8L33.6 45.8M22.4 57.1L20.5 58.9" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" stroke="#BDA284"/>
+<path id="Vector_5" d="M28 46.6C30.9 46.6 32.9 48.7 32.9 51.3C32.9 54.2 30.6 56.1 28 56.1C25.3 56.1 23.1 53.9 23.1 51.3C23.1 48.7 25.3 46.6 28 46.6Z" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" stroke="#BDA284"/>
+</g>
+<path id="moon-stamp" d="M62.2 44.2C58.9 46.9 58.1 50.6 60.2 53.6C61.7 55.8 64.7 56.8 67.5 55.8C65.8 58.9 61.9 60.5 58.5 59.5C53.9 58.2 52.3 52.7 54.4 49.1C55.8 46.5 58.8 44.3 62.2 44.2Z" fill="#FFE9BB" stroke-width="1.25" stroke-linejoin="round" stroke="#FFE9BB"/>
+</g>
+</svg>

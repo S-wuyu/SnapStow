@@ -7,8 +7,8 @@
   <meta name="description" content="在 Windows 模拟桌面亲手试用圈收 SnapStow，从群聊圈选附件、链接和备注，再到项目箱里找到它们。">
   <title>圈收 SnapStow · 圈一下，松手继续工作</title>
   <link rel="icon" href="./snapstow.png">
-  <link rel="stylesheet" href="./style.css?v=desktop-icons">
-  <script src="./demo.js?v=desktop-icons" defer></script>
+  <link rel="stylesheet" href="./style.css?v=warehouse-belt">
+  <script src="./demo.js?v=warehouse-belt" defer></script>
 </head>
 <body>
   <a class="skip" href="#try">跳到桌面体验</a>
@@ -63,14 +63,18 @@
                 <div class="queue" id="queue"></div>
                 <button type="button" class="icon-control machine" id="queue-prev" aria-label="上一组待处理文件" title="上一组待处理文件"><img src="./art/queue-right.svg" alt=""></button>
               </section>
-              <section class="belt" id="belt" aria-label="项目箱传送带">
-                <div class="belt-bed" aria-hidden="true"><img src="./art/belt-frame.svg" alt=""><div class="rollers"></div></div>
-                <div class="boxes" id="boxes"></div>
-                <div class="belt-paging" aria-label="项目箱分页">
-                  <button type="button" class="icon-control belt-step" id="box-prev" aria-label="上一组项目箱" title="上一组项目箱"><span aria-hidden="true">‹</span></button>
-                  <button type="button" class="icon-control belt-step" id="box-next" aria-label="下一组项目箱" title="下一组项目箱"><span aria-hidden="true">›</span></button>
+              <section class="belt" id="belt" tabindex="0" aria-label="项目箱传送带，用左右方向键翻页" aria-keyshortcuts="ArrowLeft ArrowRight">
+                <div class="belt-bed" aria-hidden="true">
+                  <img src="./art/belt-frame.svg" alt="">
+                  <div class="rollers"></div>
+                  <span class="belt-mark belt-mark-left"></span><span class="belt-mark belt-mark-right"></span>
                 </div>
+                <div class="boxes" id="boxes"></div>
               </section>
+              <div class="drop-bin" id="drop-bin" aria-hidden="true" hidden>
+                <img src="./art/drop-bin-closed.svg" alt="">
+                <img src="./art/drop-bin-open.svg" alt="">
+              </div>
               <div class="association" id="association" hidden aria-hidden="true"></div>
               <button class="icon-control cut" id="cut" type="button" aria-label="剪断同名关联" title="剪断同名关联" draggable="true" hidden><img src="./art/connection-cut.svg" alt=""></button>
             </div>
@@ -78,12 +82,17 @@
             <section class="settings-page" id="settings-page" aria-label="仓库设置" hidden>
               <div class="warehouse">
                 <img class="warehouse-body" src="./art/warehouse.svg" alt="">
+                <img class="warehouse-body light-art" src="./art/warehouse-light.svg" alt="">
                 <button type="button" class="warehouse-sign" id="root-picker">工作总目录</button>
                 <button type="button" class="icon-control warehouse-folder tool" id="root-folder" aria-label="打开工作总目录" title="打开工作总目录"><img src="./art/folder-open.svg" alt=""></button>
-                <button type="button" class="warehouse-door" id="warehouse-door" aria-label="抬起卷帘门，返回工作台" title="返回工作台"><img src="./art/warehouse-door.svg" alt=""></button>
+                <button type="button" class="warehouse-door" id="warehouse-door" aria-label="抬起卷帘门，返回工作台" title="返回工作台">
+                  <img src="./art/warehouse-door.svg" alt=""><img class="light-art" src="./art/warehouse-door-light.svg" alt="">
+                </button>
                 <button type="button" class="warehouse-shortcut" id="shortcut" aria-label="设置圈选快捷键"></button>
+                <button type="button" class="warehouse-theme" id="theme" aria-label="浅色外观" title="切换为浅色外观" aria-pressed="false">
+                  <img src="./art/warehouse-theme-dark.svg" alt=""><img class="light-art" src="./art/warehouse-theme-light.svg" alt="">
+                </button>
               </div>
-              <button type="button" class="icon-control theme-control" id="theme" aria-label="浅色外观" title="切换为浅色外观" aria-pressed="false"><span aria-hidden="true">◐</span></button>
             </section>
 
             <div id="archive-underlay" class="archive-underlay" hidden></div>
