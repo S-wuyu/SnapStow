@@ -188,6 +188,10 @@ function art(name, className) {
   return image;
 }
 
+function emptyParcelArt(className) {
+  return [art("parcel-empty-dark", className + " empty-dark"), art("parcel-empty-light", className + " empty-light")];
+}
+
 function registerMessage(text) {
   const id = "sent-" + (++outgoingCount);
   const links = new Set();
@@ -618,7 +622,6 @@ function renderBoxes() {
     const box = node("button", "project");
     box.type = "button";
     box.dataset.project = key;
-    box.title = projects.get(key);
     const name = projects.get(key);
     const empty = key === deletedDirectoryProject;
     box.toggleAttribute("data-empty", empty);
@@ -626,7 +629,7 @@ function renderBoxes() {
     box.setAttribute("aria-label", action + name + "项目箱" + (empty ? "，目录已删除" : ""));
     if (empty) {
       box.setAttribute("aria-keyshortcuts", "Delete");
-      box.append(art("parcel-empty-dark", "parcel empty-dark"), art("parcel-empty-light", "parcel empty-light"));
+      box.append(...emptyParcelArt("parcel"));
     } else {
       box.append(art("parcel-glow", "parcel-glow"), art("parcel", "parcel"), art("parcel-label", "parcel-label"), art("parcel-label-tall", "parcel-label parcel-label-tall"));
     }
@@ -870,13 +873,19 @@ function renderArchive() {
   for (const [key, entry] of records) if (entry.project === viewing) addFile(key, entry.historical ? "history" : "saved");
   for (const [key, task] of copying) if (task.project === viewing) addFile(key, "copying");
 
+  if (!groups.size) {
+    const empty = node("p", "archive-empty");
+    empty.append(...emptyParcelArt("archive-empty-box"), node("span", "sr-only", "项目箱暂无资料"));
+    archiveContent.append(empty);
+    return;
+  }
+
   for (const [source, files] of groups) {
     const section = node("section", "group");
     const card = node("button", "group-card");
     card.type = "button";
     card.dataset.source = source;
     card.draggable = true;
-    card.title = names[source];
     card.setAttribute("aria-pressed", String(sourceSelection === source));
     card.append(art("checklist"), node("strong", "", names[source]));
     const origins = [...new Set(files.map((entry) => entry.source))];
@@ -1820,7 +1829,9 @@ boxes.addEventListener("click", (event) => {
   const box = event.target.closest("[data-project]");
   if (!box || (suppressProjectClick && event.detail > 0)) return;
   const key = box.dataset.project;
-  if (selected) {
+  if (lensMode && event.pointerType === "touch") {
+    showPreview(box);
+  } else if (selected) {
     place(selected, key);
   } else if (event.detail > 0 && event.target.closest("strong")) {
     clearTimeout(openTimer);
