@@ -11,15 +11,17 @@
 
 [打开 Figma 流水线总览](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=111-1364)
 
+总览顶部直接展示工作台和仓库设置，各自带播放及原稿入口。下方状态板可对照深浅主题、文件拖起与投放、窄窗命中、仓库目录和归档异常。其他原型与视觉规范按顺序排列。工作台、仓库和其他画面在同一页面按流程分区，原有原型入口继续可用。
+
 | 入口 | 怎么体验 |
 | --- | --- |
-| [工作台与待处理文件移除](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7807&starting-point-node-id=204%3A7807) · [双分页专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-2&starting-point-node-id=108%3A2) | 沿侧面刻印方向横拖传送带翻页。拖文件到垃圾桶移除。专项演示可用上排侧键切到失败文件页。 |
+| [工作台与待处理文件移除](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7807&starting-point-node-id=204%3A7807) · [双分页专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-2&starting-point-node-id=108%3A2) | 沿侧面刻印方向横拖传送带翻页。拖起文件后，将指针移到桶口看文件虚化，点击投放。专项演示可用上排侧键切到失败文件页。 |
 | [拖文件入箱](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-709&starting-point-node-id=108%3A709) | 拖「验收清单.xlsx」观察箱体在投放过程中亮起，入箱后短暂保留微光。 |
 | [首页同名冲突](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-1718&starting-point-node-id=108%3A1718) | 点击横向短虚线剪断连接，直接拖原虚线改接。可保持连线拖入新件，也可放回已连线的文件。 |
 | [开箱与群清单](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-101&starting-point-node-id=108%3A101) · [单群连线](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-249&starting-point-node-id=108%3A249) | 滚轮查看后续资料。原型中拖研发来源演示移出，拖反馈来源演示箱内合并。 |
 | [合并失败回弹](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-3220&starting-point-node-id=108%3A3220) | 拖一张清单，观察连线弯曲、纸张交叠，再弹回各自位置。 |
 | [放大镜](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-999&starting-point-node-id=108%3A999) | 悬浮文件查看来源，悬浮首屏项目箱查看创建时间、包含数量和大小。开箱后使用浮层顶栏的放大镜查看资料原图。 |
-| [仓库日月挂签](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=216-6627&starting-point-node-id=216%3A6627) · [目录选择专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-502&starting-point-node-id=108%3A502) · [占用涂鸦](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=126-4492&starting-point-node-id=126%3A4492) | 点左下角的日月挂签切换外观。点木质牌匾模拟选目录，旁边的文件夹图标打开资源管理器样稿。点设置图标或主标题返回，也可向上拖卷帘门。 |
+| [仓库日月挂签](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=216-6627&starting-point-node-id=216%3A6627) · [目录选择专项](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=108-502&starting-point-node-id=108%3A502) · [占用涂鸦](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=126-4492&starting-point-node-id=126%3A4492) | 点日月挂签切换外观，点木质牌匾模拟选目录。向上拖门底把手返回工作台，也可点设置图标或主标题返回。 |
 | [封箱与复制](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=124-3345&starting-point-node-id=124%3A3345) · [失败退回](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=125-6623&starting-point-node-id=125%3A6623) | 观察封条沿箱盖贴合到箱身。点击包裹查看文件复制进度。失败样例退回上排后页，并标出来源项目。 |
 | [浅色宽窗](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=108-610) · [440 DIP 窄窗](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=111-1577) | 核对文件卡、角标对齐和包裹在缩放后的可读性。 |
 | [窄窗长名称](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS?node-id=167-5718) | 查看箱面标签中的两行末尾省略效果。 |
@@ -83,8 +85,8 @@
 
 ## 7. 仓库设置
 
-- 设置图标打开仓库立面。在设置中点击同一图标或主标题回到首页。向上拖卷帘门会抬升门板并返回首页。深色主题沿用蓝灰墙体（#333E4C）和屋顶（#4F6580），木质牌匾为暖棕色（#826247）。浅色主题采用暖灰墙体和浅木牌匾。
-- 木质牌匾设在屋顶与卷帘门之间，未配置时写「工作总目录」，配置后显示所选路径。点牌匾调用系统目录选择器，可选择本机可写目录。取消或选中无效路径时保留原值，路径错误显示在牌匾旁。旁边的文件夹图标在文件资源管理器打开已选目录，未配置时禁用。长路径按牌匾宽度截断，可查看完整值。Figma 模拟目录选择，原生路径校验待 Windows 验证。
+- 设置图标打开仓库立面。在设置中点击同一图标或主标题回到首页。向上拖卷帘门会抬升门板并返回首页。深浅主题共用同一套卷帘门提手造型、尺寸和位置：门板下沿中央的 40 × 20 DIP 提手带上提符号，配色随主题切换。深色主题采用蓝灰墙体（#333E4C）、屋顶（#4F6580）和暖棕木质牌匾（#826247）。浅色主题采用暖灰墙体和浅木牌匾。
+- 木质牌匾设在屋顶与卷帘门之间，未配置时写「工作总目录」，配置后显示所选路径。点牌匾调用系统目录选择器，可选择本机可写目录。取消或选中无效路径时保留原值，路径错误显示在牌匾旁。长路径按牌匾宽度截断，可查看完整值。已选目录可从托盘菜单打开。Figma 模拟目录选择，原生路径校验待 Windows 验证。
 - 外墙的快捷键涂鸦在未配置时写「请设置快捷键」，保存后显示实际组合键。点击进入监听，按下组合键保存，Esc 取消。两个字段可按任意顺序设置。
 - 失败原因用红色涂鸦贴在出错控件旁。快捷键占用或目录不可用时保留上次有效值，并在原位允许重试。
 
@@ -117,24 +119,32 @@ Figma 术语见官方的[原型交互](https://help.figma.com/hc/en-us/articles/
 
 ## 9. 验收
 
-已在 Figma 核对 14 个播放入口、群资料移出与放回、托盘菜单、宽窄布局，以及窗口关闭和详情关闭的不同去向。Windows 待验收调整窗口尺寸、实际收起和恢复、真实右键、跨项目迁移、目录内移动后的来源追踪，以及拖动方向、命中和跟手。96 DIP 是传送带翻页阈值的试用起点。
+已在 Figma 核对 16 个播放入口、16 张状态预览、工作台和仓库的双向跳转，以及文件拖起、移入和移出桶口的状态。Windows 待验收调整窗口尺寸、实际收起和恢复、真实右键、跨项目迁移、目录内移动后的来源追踪，以及拖动方向、命中和跟手。96 DIP 是传送带翻页阈值的试用起点。
 
 ## 10. 网页体验原型
 
 [打开 Windows 模拟桌面](https://s-wuyu.github.io/SnapStow/#try)
 
-页面直接打开模拟桌面。群聊右上角保留圈选图标，任务栏用圈收应用图标打开工作台。桌面右上角是重置和 GitHub 图标。图标入口共用控件样式及悬停、焦点和按下状态。圈选状态用窗口边框、准星和选框呈现。松手后回到原聊天，归档状态在用户打开工作台后显示。工作台复用 Figma 的文件、箱体、封条、滚筒、采购清单和仓库立面图形。上排保留固定卡位，宽屏每页三格，窄屏两格。空位用圈选框、项目箱或清单搭配短标签展示产品流程。下排可横拖翻页，聚焦传送带后也可按左右键。
+页面直接打开模拟桌面。右侧壁纸排印「圈收 SnapStow」，提供「圈选群聊」「拖文件入箱」「打开项目箱」三个入口。点入口即进入对应操作。窄屏将同组内容放在聊天窗口上方。圈选时，壁纸提示拖框，聊天窗口用外框、准星和选框响应。松手即回到原聊天，归档结果在打开工作台后可查看。任务栏的圈收图标打开工作台，桌面右上角保留重置和 GitHub 图标。
+
+联调资料以群聊气泡呈现，包含环境名称、网址、示例账号和示例密码。圈选后，项目箱展示网址和凭据对象。用放大镜查看凭据时，回看同一条合成群聊消息。
+
+工作台复用 Figma 的文件、箱体、封条、滚筒、采购清单和仓库立面图形。上排宽屏每页三格，窄屏每页两格，空位用图标和短标签展示产品流程。下排可横拖翻页，聚焦传送带后也可按左右键。仓库牌匾用于设置目录，从托盘菜单可打开该目录。卷帘门使用与 Figma 一致的深浅提手，向上拖动时门板跟手并在松手后升起。
 
 网页以合成内容和浏览器内状态演示归档。托盘、快捷键、目录选择和资源管理器均为模拟控件。Windows 原型另行验收系统集成、截图识别和磁盘写入。
 
-已用 Ego 核对宽屏鼠标圈选、归档、拖放移除和取消，以及 390 像素窄屏的触屏滑动、投放和外观切换。触屏通过浏览器模拟。
+已用 Ego 核对宽屏鼠标圈选、开箱回看合成账号消息、桶口虚化复位、托盘打开目录，以及 390 像素窄屏上的圈选、垃圾桶投放、外观切换和卷帘门上拉。触屏通过浏览器模拟。
 
 ## 11. 传送带滑动提示与待处理件删除
 
 [Figma 状态板](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7806) · [播放交互](https://www.figma.com/proto/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-7807&starting-point-node-id=204%3A7807)
 
+[深色命中态](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=235-6846) · [浅色命中态](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=235-7095) · [窄窗命中态](https://www.figma.com/design/0NMHocM6zg4ICmhLw94TTS/SnapStow?node-id=204-8938)
+
 - 左右箭头分别印在机架朝向用户的长侧面两端，提示横向滑动。箭头是静态图层。横拖传送带可翻动项目箱，下排操作不改变上排页码。拖动时仅移动传送带和箱列，保持画面无浏览器选区或投放高亮。
-- 拖起上排待处理文件时，传送带右下方空位出现带盖和滚轮的蓝灰色垃圾桶。宽窗图形范围为 76 × 82 DIP，窄窗按比例缩放至约 66 × 71 DIP。桶盖在命中时掀开，桶口亮暖金边。松手命中立即移除条目并收起垃圾桶。拖出目标、落空或按 Esc 时保留原条目。Figma 用拖起文件和点击垃圾桶两步模拟同一次拖放。
+- 拖起上排待处理文件时，传送带右下方空位出现带盖和滚轮的蓝灰色垃圾桶。宽窗图形范围为 76 × 82 DIP，窄窗约 66 × 71 DIP。
+- 文件拖过桶口时，桶盖掀开、桶口亮暖金边。文件预览覆盖桶口，降至 43% 不透明度，并加约 1.6 DIP 的图层模糊（窄窗约 1.4 DIP）。垃圾桶保持清晰，从文件下方可见。离开命中区时，文件预览恢复正常。
+- 松手命中立即移除条目并收起垃圾桶。落空或按 Esc 保留原条目。Figma 演示顺序是拖起文件、指针移入或移出桶口、点击模拟投放。实际连续拖动及松手命中待 Windows 核对。
 - 直接移除待处理条目，用户可以重新圈选识别。下载原件、历史归档和待迁群清单保留。Figma 核对了深浅状态、440 DIP 窄窗，以及删除后继续翻页的结果。
 
 网页支持鼠标和触屏拖放。键盘聚焦待处理文件后可按 Delete 移除。放弃同名新件时，已有归档的引用也从待处理区收起。移除旧件的引用时，新件留在待处理区等待选择项目。
