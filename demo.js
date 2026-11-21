@@ -22,6 +22,8 @@ const board = byId("board");
 const belt = byId("belt");
 const boxes = byId("boxes");
 const dropBin = byId("drop-bin");
+const binHint = byId("bin-hint");
+const binAnnouncement = byId("bin-announcement");
 const archive = byId("archive");
 const archiveContent = byId("archive-content");
 const underlay = byId("archive-underlay");
@@ -94,6 +96,8 @@ const sampleFixtures = {
 const rank = { conflict: 0, confirm: 1, choose: 2, source: 2, missing: 3, query: 4, failed: 5 };
 const stateLabels = { confirm: "待确认原件", choose: "待归档", source: "待迁来源", query: "查询未完成", failed: "写入失败" };
 const missingLabel = "未下载或本地未找到";
+const deletedDirectoryProject = "handoff";
+const binRejection = "先在系统中删除目录";
 const projectDocumentName = "项目资料.md";
 const credentialName = /账号|帐号|密码|口令|密钥|令牌|(?:^|[^a-z\d])(?:account|user(?:name)?|password|passwd|token|secret|api[_-]?key|authorization|signature)(?![a-z\d])/i;
 const sourceMime = "application/x-snapstow-source";
@@ -124,6 +128,10 @@ let captureDrag = null;
 let beltDrag = null;
 let beltLineFrame;
 let fileDrag = null;
+let projectDrag = null;
+let suppressProjectClick = false;
+let binHintTimer;
+const discardedProjects = new Set();
 let doorDrag = null;
 let doorTimer;
 let suppressDoorClick = false;
@@ -138,6 +146,7 @@ function resetState() {
   clearTimeout(openTimer);
   copying.clear();
   sourceCaptures.clear();
+  discardedProjects.clear();
   fixtures = { ...sampleFixtures };
   outgoingCount = 0;
   outgoingLinks = new Map([["dev\n" + environmentUrl, "link"]]);
@@ -588,9 +597,22 @@ function renderQueue() {
   syncLine();
 }
 
+function visibleProjects() {
+  return [...projects.keys()].filter((key) => !discardedProjects.has(key));
+}
+
+function fitParcelLabels() {
+  for (const box of boxes.querySelectorAll(".project:not([data-empty])")) {
+    const label = box.querySelector("strong");
+    box.removeAttribute("data-long-label");
+    box.toggleAttribute("data-long-label", label.scrollWidth > label.clientWidth);
+  }
+}
+
 function renderBoxes() {
   const focus = document.activeElement?.dataset.project;
-  const keys = [...projects.keys()];
+  const keys = visibleProjects();
+  boxPage = Math.min(boxPage, Math.max(0, Math.ceil(keys.length / 2) - 1));
   boxes.replaceChildren();
   for (const key of keys.slice(boxPage * 2, boxPage * 2 + 2)) {
     const box = node("button", "project");
@@ -598,11 +620,20 @@ function renderBoxes() {
     box.dataset.project = key;
     box.title = projects.get(key);
     const name = projects.get(key);
-    const action = selected ? "归档到" : "打开";
-    box.setAttribute("aria-label", action + name + "项目箱");
-    box.append(art("parcel-glow", "parcel-glow"), art("parcel", "parcel"), art("parcel-label", "parcel-label"), node("strong", "", name));
+    const empty = key === deletedDirectoryProject;
+    box.toggleAttribute("data-empty", empty);
+    const action = selected && !empty ? "归档到" : "打开";
+    box.setAttribute("aria-label", action + name + "项目箱" + (empty ? "，目录已删除" : ""));
+    if (empty) {
+      box.setAttribute("aria-keyshortcuts", "Delete");
+      box.append(art("parcel-empty-dark", "parcel empty-dark"), art("parcel-empty-light", "parcel empty-light"));
+    } else {
+      box.append(art("parcel-glow", "parcel-glow"), art("parcel", "parcel"), art("parcel-label", "parcel-label"), art("parcel-label-tall", "parcel-label parcel-label-tall"));
+    }
+    box.append(node("strong", "", name));
     boxes.append(box);
   }
+  fitParcelLabels();
   syncCopyBadges();
   if (focus) boxes.querySelector('[data-project="' + focus + '"]')?.focus({ preventScroll: true });
   syncLine();
@@ -619,10 +650,11 @@ function syncLine() {
   const line = byId("association");
   const movingFile = conflict?.linked === fileDrag?.key && fileDrag?.ghost;
   const from = movingFile || (conflict?.linked && queue.querySelector('[data-pending="' + conflict.linked + '"]'));
-  const to = conflict && boxes.querySelector('[data-project="' + conflict.target + '"]');
+  const movingBox = conflict?.target === projectDrag?.key && projectDrag?.ghost;
+  const to = movingBox || (conflict && boxes.querySelector('[data-project="' + conflict.target + '"]'));
   const visible = Boolean(!bench.hidden && !settingsOpen && !archive.open && from && to);
   line.hidden = !visible;
-  cut.hidden = !visible || Boolean(movingFile);
+  cut.hidden = !visible || Boolean(movingFile || movingBox);
   if (!visible) return;
   const boardRect = board.getBoundingClientRect();
   const origin = from.getBoundingClientRect();
@@ -639,15 +671,16 @@ function syncLine() {
   cut.style.setProperty("--cut-y", y + dy * .33 + "px");
 }
 
-function syncSettlingBeltLine() {
+function syncSettlingLine() {
   syncLine();
-  const settling = boxes.getAnimations().some((animation) =>
-    animation.transitionProperty === "transform" && (animation.pending || animation.playState === "running")
+  const settling = boxes.getAnimations({ subtree: true }).some((animation) =>
+    (animation.transitionProperty === "transform" || animation.id === "project-return") &&
+    (animation.pending || animation.playState === "running")
   );
   if (settling && beltLineFrame === undefined) {
     beltLineFrame = requestAnimationFrame(() => {
       beltLineFrame = undefined;
-      syncSettlingBeltLine();
+      syncSettlingLine();
     });
   }
 }
@@ -666,6 +699,8 @@ function showBench(open) {
     closeArchive(false);
     if (lensMode) setLens(false);
     clearFileDrag();
+    finishProjectDrag();
+    clearBinHint();
     resetWarehouseDoor();
   }
   stopCapture();
@@ -739,6 +774,7 @@ function newName(key, project) {
 }
 
 function place(key, project) {
+  if (project === deletedDirectoryProject) return;
   const state = pending.get(key);
   if (!canPlace(key)) return;
   let operation = null;
@@ -809,8 +845,9 @@ function changeQueue(direction) {
 }
 
 function changeBoxes(direction) {
-  const next = Math.max(0, Math.min(Math.ceil(projects.size / 2) - 1, boxPage + direction));
+  const next = Math.max(0, Math.min(Math.ceil(visibleProjects().length / 2) - 1, boxPage + direction));
   if (boxPage === next) return;
+  clearBinHint();
   boxPage = next;
   renderBoxes();
   showPreview();
@@ -933,8 +970,9 @@ function showPreview(target) {
     title = names[target.dataset.source];
     text = "示例会话来源";
   } else if (target.dataset.project) {
-    title = projects.get(target.dataset.project);
-    text = "创建于 2026-11-20 · " + recordNames(target.dataset.project).length + " 项资料 · 0 个子目录";
+    const project = target.dataset.project;
+    title = projects.get(project);
+    text = project === deletedDirectoryProject ? "项目目录已删除" : "创建于 2026-11-20 · " + recordNames(project).length + " 项资料 · 0 个子目录";
   }
   if (!title) return;
   previewTarget = target;
@@ -1023,12 +1061,15 @@ function resetWarehouseDoor() {
 function updateWarehouseDirectory() {
   byId("root-label").textContent = root || "工作总目录";
   byId("root-picker").title = root || "选择工作总目录";
+  byId("root-picker").toggleAttribute("data-unconfigured", !root);
 }
 
 function showSettings(open) {
   if (archive.open) return;
   if (open) {
     clearFileDrag();
+    finishProjectDrag();
+    clearBinHint();
     announce();
   }
   resetWarehouseDoor();
@@ -1130,7 +1171,8 @@ function renderFolder() {
   const places = [...new Set([computer, localDrive, teamDrive, root].filter(Boolean))];
   byId("explorer-places").replaceChildren(...places.map((place) => folderLink(place, directoryName(place))));
 
-  const projectPaths = new Map([...projects].map(([key, name]) => [directoryPath(root, name), key]));
+  const projectPaths = new Map([...projects].filter(([key]) => key !== deletedDirectoryProject)
+    .map(([key, name]) => [directoryPath(root, name), key]));
   const children = [...new Set([...(demoDirectories.get(path) || []), ...(path === root ? projectPaths.keys() : [])])];
   const rows = children.map((child) => folderRow(directoryName(child), child));
   const project = projectPaths.get(path);
@@ -1178,6 +1220,10 @@ function showFolder(path, choose, opener) {
 function openFolder(project, opener = tray) {
   closeTray();
   if (!root) return;
+  if (project === deletedDirectoryProject) {
+    announce("项目目录已删除");
+    return;
+  }
   const path = project ? directoryPath(root, projects.get(project)) : root;
   showFolder(path, false, opener);
 }
@@ -1218,6 +1264,7 @@ function renameProject(box) {
       wrapper.remove();
       box.focus();
     } else if (event.key === "Enter") {
+      event.preventDefault();
       const value = input.value.trim();
       if (!value || [...projects].some(([key, label]) => key !== project && label === value)) {
         announce("请输入一个未使用的项目名");
@@ -1493,7 +1540,7 @@ byId("theme").addEventListener("click", (event) => {
 byId("queue-next").addEventListener("click", () => changeQueue(1));
 byId("queue-prev").addEventListener("click", () => changeQueue(-1));
 belt.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0 || !event.isPrimary || beltDrag || fileDrag || event.target.closest("input")) return;
+  if (event.button !== 0 || !event.isPrimary || beltDrag || fileDrag || projectDrag || event.target.closest("input, .project")) return;
   if (event.pointerType === "mouse" && !event.target.closest("button")) event.preventDefault();
   beltDrag = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
 });
@@ -1517,7 +1564,7 @@ function endBelt(event, complete) {
   belt.classList.remove("swiping");
   belt.style.removeProperty("--belt-move");
   if (complete && swiping && Math.abs(offset) >= (pageSize() === 2 ? 60 : 96)) changeBoxes(offset < 0 ? 1 : -1);
-  syncSettlingBeltLine();
+  syncSettlingLine();
 }
 belt.addEventListener("pointerup", (event) => endBelt(event, true));
 belt.addEventListener("pointercancel", (event) => endBelt(event, false));
@@ -1535,7 +1582,7 @@ belt.addEventListener("keydown", (event) => {
 
 queue.addEventListener("pointerdown", (event) => {
   const card = event.target.closest("[data-pending]");
-  if (!card || event.button !== 0 || !event.isPrimary || fileDrag || beltDrag) return;
+  if (!card || event.button !== 0 || !event.isPrimary || fileDrag || beltDrag || projectDrag) return;
   const rect = card.getBoundingClientRect();
   fileDrag = { card, key: card.dataset.pending, pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
 });
@@ -1543,7 +1590,7 @@ queue.addEventListener("pointerdown", (event) => {
 function updateFileDropTarget(drag, event) {
   const target = document.elementFromPoint(event.clientX, event.clientY);
   const project = target?.closest("[data-project]");
-  const next = project && canPlace(drag.key) ? project : null;
+  const next = project && !project.hasAttribute("data-empty") && canPlace(drag.key) ? project : null;
   if (drag.project !== next) {
     drag.project?.classList.remove("drop-target");
     next?.classList.add("drop-target");
@@ -1578,6 +1625,7 @@ document.addEventListener("pointermove", (event) => {
     board.append(drag.ghost);
     drag.previewHeight = drag.ghost.offsetHeight;
     drag.card.classList.add("drag-origin");
+    clearBinHint();
     dropBin.hidden = !canDiscard(drag.key);
     showPreview();
   }
@@ -1610,6 +1658,110 @@ for (const type of ["pointercancel", "lostpointercapture"]) {
     if (fileDrag?.pointer !== event.pointerId) return;
     if (event.type === "lostpointercapture" && queue.hasPointerCapture(event.pointerId)) return;
     clearFileDrag();
+  });
+}
+
+function clearBinHint() {
+  clearTimeout(binHintTimer);
+  if (binHint.hidden) return;
+  binHint.hidden = true;
+  binAnnouncement.textContent = "";
+  dropBin.hidden = true;
+}
+
+function showBinHint() {
+  dropBin.removeAttribute("data-hit");
+  dropBin.hidden = false;
+  binHint.hidden = false;
+  binAnnouncement.textContent = binRejection;
+  clearTimeout(binHintTimer);
+  binHintTimer = setTimeout(clearBinHint, 2400);
+}
+
+function discardProject(key) {
+  if (key !== deletedDirectoryProject || discardedProjects.has(key)) return;
+  const focused = document.activeElement?.dataset.project === key;
+  discardedProjects.add(key);
+  renderBoxes();
+  if (focused) belt.focus({ preventScroll: true });
+  announce("已移除「" + projects.get(key) + "」的空箱");
+}
+
+boxes.addEventListener("pointerdown", (event) => {
+  const box = event.target.closest("[data-project]");
+  if (!box || event.button !== 0 || !event.isPrimary || fileDrag || beltDrag || projectDrag) return;
+  suppressProjectClick = false;
+  clearBinHint();
+  const rect = box.getBoundingClientRect();
+  projectDrag = { box, key: box.dataset.project, pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
+});
+
+function hitsBin(event) {
+  return document.elementFromPoint(event.clientX, event.clientY) === dropBin;
+}
+
+document.addEventListener("pointermove", (event) => {
+  const drag = projectDrag;
+  if (drag?.pointer !== event.pointerId) return;
+  if (!drag.ghost) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
+    clearTimeout(openTimer);
+    suppressProjectClick = true;
+    boxes.setPointerCapture(event.pointerId);
+    drag.ghost = node("div", "project project-ghost");
+    drag.ghost.setAttribute("aria-hidden", "true");
+    drag.ghost.toggleAttribute("data-empty", drag.key === deletedDirectoryProject);
+    drag.ghost.toggleAttribute("data-long-label", drag.box.hasAttribute("data-long-label"));
+    drag.ghost.style.width = drag.rect.width + "px";
+    drag.ghost.append(...[...drag.box.children].map((child) => child.cloneNode(true)));
+    board.append(drag.ghost);
+    drag.box.classList.add("project-drag-origin");
+    dropBin.hidden = false;
+    showPreview();
+  }
+  const overBin = drag.key === deletedDirectoryProject && hitsBin(event);
+  dropBin.toggleAttribute("data-hit", overBin);
+  drag.ghost.classList.toggle("over-bin", overBin);
+  const bounds = board.getBoundingClientRect();
+  const bin = overBin && dropBin.getBoundingClientRect();
+  const left = bin ? bin.left + (bin.width - drag.rect.width) / 2 : drag.rect.left + event.clientX - drag.x;
+  const top = bin ? bin.top - drag.rect.height * .48 : drag.rect.top + event.clientY - drag.y;
+  drag.ghost.style.translate = (left - bounds.left) + "px " + (top - bounds.top) + "px";
+  if (conflict?.target === drag.key) syncLine();
+});
+
+function finishProjectDrag({ bin = false, animate = false } = {}) {
+  const drag = projectDrag;
+  projectDrag = null;
+  if (!drag?.ghost) return;
+  const ghostRect = drag.ghost.getBoundingClientRect();
+  drag.ghost.remove();
+  drag.box.classList.remove("project-drag-origin");
+  dropBin.removeAttribute("data-hit");
+  dropBin.hidden = true;
+  if (bin && drag.key === deletedDirectoryProject) {
+    discardProject(drag.key);
+    return;
+  }
+  if (animate && drag.box.isConnected && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const resting = drag.box.getBoundingClientRect();
+    drag.box.animate([
+      { translate: (ghostRect.left - resting.left) + "px " + (ghostRect.top - resting.top) + "px" },
+      { translate: "0px 0px" },
+    ], { id: "project-return", duration: 330, easing: "cubic-bezier(.3, 1.35, .55, 1)" });
+  }
+  syncSettlingLine();
+  if (bin) showBinHint();
+}
+
+document.addEventListener("pointerup", (event) => {
+  if (projectDrag?.pointer === event.pointerId) finishProjectDrag({ bin: hitsBin(event), animate: true });
+});
+for (const type of ["pointercancel", "lostpointercapture"]) {
+  document.addEventListener(type, (event) => {
+    if (projectDrag?.pointer === event.pointerId && (type === "pointercancel" || event.target === boxes)) {
+      finishProjectDrag({ animate: true });
+    }
   });
 }
 
@@ -1666,7 +1818,7 @@ cut.addEventListener("click", () => {
 });
 boxes.addEventListener("click", (event) => {
   const box = event.target.closest("[data-project]");
-  if (!box) return;
+  if (!box || (suppressProjectClick && event.detail > 0)) return;
   const key = box.dataset.project;
   if (selected) {
     place(selected, key);
@@ -1689,7 +1841,11 @@ boxes.addEventListener("contextmenu", (event) => {
 });
 boxes.addEventListener("keydown", (event) => {
   const box = event.target.closest("[data-project]");
-  if (box && event.key === "F2") {
+  if (!box || event.repeat) return;
+  if (event.key === "Delete" && box.hasAttribute("data-empty")) {
+    event.preventDefault();
+    discardProject(box.dataset.project);
+  } else if (event.key === "F2" && !box.hasAttribute("data-empty")) {
     event.preventDefault();
     renameProject(box);
   }
@@ -1796,6 +1952,8 @@ document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || folder.open || sourceChoice.open) return;
   if (event.key === "Escape") {
     if (fileDrag) clearFileDrag();
+    else if (projectDrag) finishProjectDrag({ animate: true });
+    else if (!binHint.hidden) clearBinHint();
     else if (!trayMenu.hidden) {
       closeTray();
       tray.focus({ preventScroll: true });
@@ -1822,9 +1980,11 @@ document.addEventListener("keydown", (event) => {
 new ResizeObserver(() => {
   if (previewTarget?.isConnected && !preview.hidden) positionPreview(previewTarget);
   if (bench.hidden || settingsOpen || archive.open) return;
+  fitParcelLabels();
   if (pageSize() !== lastQueueSize) renderQueue();
   else syncLine();
 }).observe(bench);
+document.fonts.addEventListener("loadingdone", fitParcelLabels);
 new ResizeObserver(() => { if (chatOpen) moveChat(chatOffset.x, chatOffset.y); }).observe(screen);
 byId("reset").addEventListener("click", reset);
 resetState();
