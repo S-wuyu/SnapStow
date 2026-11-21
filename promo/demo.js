@@ -122,6 +122,7 @@ let running = true;
 let captureActive = false;
 let captureDrag = null;
 let beltDrag = null;
+let beltLineFrame;
 let fileDrag = null;
 let doorDrag = null;
 let doorTimer;
@@ -636,6 +637,19 @@ function syncLine() {
   line.style.setProperty("--angle", Math.atan2(dy, dx) + "rad");
   cut.style.setProperty("--cut-x", x + dx * .33 + "px");
   cut.style.setProperty("--cut-y", y + dy * .33 + "px");
+}
+
+function syncSettlingBeltLine() {
+  syncLine();
+  const settling = boxes.getAnimations().some((animation) =>
+    animation.transitionProperty === "transform" && (animation.pending || animation.playState === "running")
+  );
+  if (settling && beltLineFrame === undefined) {
+    beltLineFrame = requestAnimationFrame(() => {
+      beltLineFrame = undefined;
+      syncSettlingBeltLine();
+    });
+  }
 }
 
 function renderBench() {
@@ -1503,7 +1517,7 @@ function endBelt(event, complete) {
   belt.classList.remove("swiping");
   belt.style.removeProperty("--belt-move");
   if (complete && swiping && Math.abs(offset) >= (pageSize() === 2 ? 60 : 96)) changeBoxes(offset < 0 ? 1 : -1);
-  syncLine();
+  syncSettlingBeltLine();
 }
 belt.addEventListener("pointerup", (event) => endBelt(event, true));
 belt.addEventListener("pointercancel", (event) => endBelt(event, false));
