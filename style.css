@@ -147,6 +147,8 @@ button:active:not(:disabled) { filter: brightness(.94); }
 .material-icon { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 25px; background: #d8e8df; border-radius: 5px; color: #285846; font: 700 .78rem/1 monospace; }
 .material-icon.missing { background: #eaded3; color: #6a4632; }
 .sent { margin: 7px 0 3px auto; max-width: 85%; width: fit-content; padding: 7px 9px; border-radius: 7px; background: #dce9e2; font-size: .8rem; overflow-wrap: anywhere; }
+.user-sent { display: block; border: 0; text-align: start; color: inherit; }
+.is-capturing .user-sent { cursor: crosshair; }
 .chat-window[data-client="wechat"] .sent { background: #d4ecc8; }
 .chat-window[data-client="dingtalk"] .sent { background: #dbeafc; }
 .chat-window[data-client="wecom"] .sent { background: #d7eaf6; }
@@ -192,6 +194,8 @@ button:active:not(:disabled) { filter: brightness(.94); }
   --machine-active: #566c87;
   --neutral-tag: #38485e;
   --neutral-ink: #dce7f2;
+  --missing-bg: #3b485b;
+  --missing-ink: #e1eaf5;
   --danger-bg: #66343f;
   --danger: #ffc1c9;
   color-scheme: dark;
@@ -223,6 +227,8 @@ button:active:not(:disabled) { filter: brightness(.94); }
   --machine-active: #d0e3f5;
   --neutral-tag: #e5eff8;
   --neutral-ink: #325575;
+  --missing-bg: #dce8f3;
+  --missing-ink: #324b66;
   --danger-bg: #ffe0e5;
   --danger: #8a253b;
   color-scheme: light;
@@ -253,14 +259,15 @@ button:active:not(:disabled) { filter: brightness(.94); }
 .feature-card strong { font-weight: 450; }
 .feature-card .capture-glyph { position: relative; display: block; width: 32px; height: 36px; color: var(--bench-muted); background: url("./art/paper.svg") center / 17px auto no-repeat; }
 .file-card.drag-ghost { position: absolute; top: 0; left: 0; z-index: 7; height: 85px; min-height: 0; padding: 6px; gap: 4px; pointer-events: none; opacity: .92; box-shadow: 0 6px 18px #131a2966; }
-.drag-ghost img:not(.missing-mark) { width: 36px; height: 46px; }
+.drag-ghost img { width: 36px; height: 46px; }
 .drag-ghost strong { font-size: .66rem; }
 .drag-ghost .file-state { font-size: .52rem; padding: 2px 3px; }
 .drag-ghost.over-bin { opacity: .43; filter: blur(.8px); box-shadow: none; }
 button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-target { border-color: var(--selection-line); background: var(--selection-bg); }
 .file-card .file-state { position: absolute; right: 5px; top: 5px; background: var(--danger-bg); color: var(--danger); padding: 3px 5px; font-size: .63rem; border-radius: 4px; max-width: calc(100% - 10px); }
 .file-card .file-state.neutral { background: var(--neutral-tag); color: var(--neutral-ink); }
-.file-card img.missing-mark { position: absolute; width: 24px; height: 24px; top: 6px; right: 6px; }
+.missing-mark { position: absolute; top: 5px; right: 5px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; background: var(--missing-bg); color: var(--missing-ink); }
+.missing-mark::before { content: ""; width: 23px; height: 23px; background: currentColor; mask: url("./art/download-missing.svg") center / contain no-repeat; }
 .belt { flex: 0 0 clamp(143px, 22cqw, 211px); width: 100%; position: relative; touch-action: pan-y; -webkit-user-select: none; user-select: none; cursor: grab; }
 .belt:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
 .belt.swiping { cursor: grabbing; }
@@ -409,6 +416,11 @@ button.file-card:hover, .file-card[aria-pressed="true"], .file-card.relink-targe
 .explorer-action.primary { border-color: #7195bb; background: #e1eef9; }
 .explorer-action:hover:enabled { background: #d4e7f7; }
 .explorer-action:disabled { opacity: .5; }
+.source-choice { width: min(550px, calc(100% - 24px)); }
+.source-choice[open] { grid-template-rows: auto minmax(0, 1fr); }
+.source-choice .explorer-content { background: #fff; padding: 8px 12px 12px; }
+.source-choice .explorer-content p { margin: 4px 8px 9px; font-size: .83rem; }
+.source-choice .explorer-row { min-height: 44px; }
 
 @container (max-width: 530px) {
   .board { gap: 5px; padding-bottom: 34px; }

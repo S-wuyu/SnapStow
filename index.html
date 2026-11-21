@@ -7,8 +7,8 @@
   <meta name="description" content="在 Windows 模拟桌面亲手试用圈收 SnapStow，从群聊圈选附件、链接和备注，再到项目箱里找到它们。">
   <title>圈收 SnapStow · 圈一下，松手继续工作</title>
   <link rel="icon" href="./snapstow.png">
-  <link rel="stylesheet" href="./style.css?v=anchored-preview">
-  <script src="./demo.js?v=anchored-preview" defer></script>
+  <link rel="stylesheet" href="./style.css?v=capture-archive">
+  <script src="./demo.js?v=capture-archive" defer></script>
 </head>
 <body>
   <a class="skip" href="#try">跳到桌面体验</a>
@@ -82,7 +82,7 @@
                     <button type="button" class="chat-command" data-chat-action="files" aria-controls="chat-detail" aria-expanded="false"><i class="folder-mark" aria-hidden="true"></i>群文件</button>
                     <button type="button" class="chat-command" data-chat-action="latest">最新消息</button>
                   </div>
-                  <input id="reply" aria-label="发送示例消息" placeholder="发送消息…" maxlength="100" autocomplete="off">
+                  <input id="reply" aria-label="发送示例消息" placeholder="发送消息…" maxlength="2000" autocomplete="off">
                   <button type="submit" class="send">发送</button>
                 </form>
               </div>
@@ -195,6 +195,17 @@
       <button type="button" id="explorer-choose" class="explorer-action primary" hidden>选择文件夹</button>
       <form method="dialog"><button class="explorer-action" id="explorer-cancel" type="submit">关闭</button></form>
     </footer>
+  </dialog>
+  <dialog id="source-choice" class="explorer source-choice" aria-labelledby="source-choice-title" aria-describedby="source-choice-context">
+    <header class="explorer-head">
+      <h2 id="source-choice-title">选择附件原件</h2>
+      <form method="dialog"><button class="icon-control explorer-close" type="submit" aria-label="关闭原件选择"><span aria-hidden="true">×</span></button></form>
+    </header>
+    <div class="explorer-content">
+      <p id="source-choice-context"></p>
+      <div class="explorer-columns" aria-hidden="true"><span>文件位置</span><span>大小</span></div>
+      <ul id="source-choices" aria-label="同名候选文件"></ul>
+    </div>
   </dialog>
 </body>
 </html>
