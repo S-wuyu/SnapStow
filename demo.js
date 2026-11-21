@@ -8,6 +8,10 @@ const messages = byId("messages");
 const messageItems = byId("message-items");
 const selection = byId("selection");
 const capture = byId("capture");
+const desktopGuide = byId("desktop-guide");
+const desktopCue = byId("desktop-cue");
+const queueExample = byId("try-queue");
+const archiveExample = byId("try-archive");
 const tray = byId("tray-app");
 const queue = byId("queue");
 const board = byId("board");
@@ -22,6 +26,8 @@ const cut = byId("cut");
 const folder = byId("explorer");
 const rootDialog = byId("choose-root");
 const trayMenu = byId("tray-menu");
+const warehouseDoor = byId("warehouse-door");
+const desktopTagline = desktopCue.textContent;
 
 const names = {
   dev: "支付改版研发群",
@@ -29,11 +35,21 @@ const names = {
   temp: "临时会话",
   launch: "上线准备群",
 };
-const channels = { dev: ["note", "sheet", "link", "missing"], temp: ["brief"] };
+const environmentUrl = "https://pay.example.com/staging";
+const environmentChat = [
+  "联调环境开好了，大家可以开始验收了。",
+  "名称：支付新版联调",
+  "网址：" + environmentUrl,
+  "账号：demo-tester",
+  "密码：demo-only",
+].join("\n");
+const channels = { dev: ["environment", "note", "sheet", "missing"], temp: ["brief"] };
 const fixtures = {
   note: { name: "验收备注", source: "dev", body: "这周先用下面这版清单验收。", kind: "note" },
   sheet: { name: "验收清单.xlsx", source: "dev", body: "本地已下载 · 48 KB", kind: "file", icon: "X" },
-  link: { name: "测试环境网址", source: "dev", body: "https://pay.example.com/staging", kind: "link", icon: "↗" },
+  environment: { name: "联调环境消息", source: "dev", body: environmentChat, kind: "environment", includes: ["link", "credential"] },
+  link: { name: "测试环境网址", source: "dev", body: environmentUrl, kind: "link" },
+  credential: { name: "支付联调测试账号", source: "dev", body: environmentChat, kind: "credential" },
   missing: { name: "回归录屏.mp4", source: "dev", body: "尚未下载 · 8.4 MB", kind: "missing", icon: "↓" },
   brief: { name: "联调记录.pdf", source: "temp", body: "本地已下载 · 126 KB", kind: "file", icon: "P" },
   old: { name: "接口清单.xlsx", source: "dev", body: "旧版 · 26 KB", kind: "file" },
@@ -61,6 +77,8 @@ let captureDrag = null;
 let beltDrag = null;
 let fileDrag = null;
 let doorDrag = null;
+let doorTimer;
+let suppressDoorClick = false;
 let suppressMessageClick = false;
 let previousFocus;
 let openTimer;
@@ -123,7 +141,7 @@ function renderChat() {
     button.type = "button";
     button.dataset.item = key;
     button.title = "圈选" + (item.kind === "note" ? "这条备注" : item.name);
-    button.setAttribute("aria-label", button.title);
+    if (item.kind !== "environment") button.setAttribute("aria-label", button.title);
     if (item.icon) {
       const icon = node("i", "material-icon " + item.kind, item.icon);
       icon.setAttribute("aria-hidden", "true");
@@ -131,11 +149,8 @@ function renderChat() {
       description.append(node("strong", "", item.name), node("small", "", item.body));
       button.append(icon, description);
     } else {
-      button.append(node("span", "", item.body));
+      button.append(node("span", "chat-text", item.body));
     }
-    const marker = node("i", "glyph capture-glyph");
-    marker.setAttribute("aria-hidden", "true");
-    button.append(marker);
     messageItems.append(button);
   }
   messages.querySelectorAll(".sent").forEach((item) => item.remove());
@@ -157,6 +172,7 @@ function startCapture() {
   chat.classList.add("is-capturing");
   capture.setAttribute("aria-pressed", "true");
   capture.title = "退出圈选 · Esc";
+  desktopCue.textContent = "拖框圈住要收的消息。";
   messages.scrollTop = 0;
 }
 
@@ -169,11 +185,12 @@ function stopCapture() {
   chat.classList.remove("is-capturing");
   capture.setAttribute("aria-pressed", "false");
   capture.title = "圈选 · " + shortcut;
+  if (desktopCue.textContent !== desktopTagline) desktopCue.textContent = desktopTagline;
 }
 
 function captureItems(keys) {
   stopCapture();
-  for (const key of keys) {
+  for (const key of keys.flatMap((item) => fixtures[item].includes || [item])) {
     if (records.has(key) || copying.has(key)) continue;
     const item = fixtures[key];
     const project = assignment.get(item.source);
@@ -353,11 +370,13 @@ function showBench(open) {
   if (!open) {
     closeArchive(false);
     clearFileDrag();
+    resetWarehouseDoor();
   }
   stopCapture();
   bench.hidden = !open;
   tray.setAttribute("aria-expanded", String(open));
   chat.inert = open;
+  desktopGuide.inert = open;
   if (open) {
     renderBench();
     byId("bench-home").focus({ preventScroll: true });
@@ -583,9 +602,11 @@ function showPreview(target) {
   const key = target.dataset.pending || target.dataset.archived;
   let title;
   let text;
+  const sourceCapture = fixtures[key]?.kind === "credential" && fixtures[key].body;
   if (key) {
     title = records.get(key)?.name || labelFor(key);
-    text = names[sourceOf(key)] + " · " + (fixtures[key]?.body || "待迁来源");
+    text = names[sourceOf(key)];
+    if (!sourceCapture) text += " · " + (fixtures[key]?.body || "待迁来源");
   } else if (target.dataset.source) {
     title = names[target.dataset.source];
     text = "示例会话来源";
@@ -595,6 +616,7 @@ function showPreview(target) {
   }
   if (!title) return;
   preview.replaceChildren(node("strong", "", title), node("span", "", text));
+  if (sourceCapture) preview.append(node("span", "chat-text source-snippet", sourceCapture));
   preview.hidden = false;
   const frame = byId("bench-main").getBoundingClientRect();
   const card = target.getBoundingClientRect();
@@ -604,12 +626,21 @@ function showPreview(target) {
   preview.style.top = top + "px";
 }
 
+function resetWarehouseDoor() {
+  clearTimeout(doorTimer);
+  doorTimer = undefined;
+  doorDrag = null;
+  warehouseDoor.classList.remove("rolling");
+  warehouseDoor.style.removeProperty("--door-lift");
+}
+
 function showSettings(open) {
   if (archive.open) return;
   if (open) {
     clearFileDrag();
     announce();
   }
+  resetWarehouseDoor();
   settingsOpen = open;
   listening = false;
   setLens(false);
@@ -618,7 +649,7 @@ function showSettings(open) {
   byId("settings").setAttribute("aria-pressed", String(open));
   byId("lens").disabled = open;
   byId("root-picker").textContent = root || "工作总目录";
-  byId("root-folder").disabled = !root;
+  byId("root-picker").title = root || "选择工作总目录";
   byId("shortcut").textContent = shortcut.replaceAll("+", " + ");
   syncLine();
 }
@@ -691,13 +722,17 @@ function shortcutFrom(event) {
   return keys.filter(Boolean).join("+");
 }
 
+function setRunning(active) {
+  running = active;
+  for (const control of [tray, capture, queueExample, archiveExample]) control.disabled = !active;
+}
+
 function reset() {
   closeArchive(false);
   if (folder.open) folder.close();
   if (rootDialog.open) rootDialog.close();
   resetState();
-  running = true;
-  tray.disabled = capture.disabled = false;
+  setRunning(true);
   showBench(false);
   bench.dataset.theme = "dark";
   byId("theme").title = "切换为浅色外观";
@@ -708,10 +743,19 @@ function reset() {
   capture.setAttribute("aria-keyshortcuts", shortcut);
   byId("reply").value = "";
   renderChat();
-  capture.focus({ preventScroll: true });
 }
 
 capture.addEventListener("click", () => captureActive ? stopCapture() : startCapture());
+queueExample.addEventListener("click", () => {
+  showBench(true);
+  showSettings(false);
+});
+archiveExample.addEventListener("click", () => {
+  boxPage = 0;
+  showBench(true);
+  showSettings(false);
+  openArchive("pay", boxes.querySelector('[data-project="pay"]'));
+});
 chat.querySelector(".channels").addEventListener("click", (event) => {
   const button = event.target.closest("[data-channel]");
   if (!button || button.dataset.channel === channel) return;
@@ -761,7 +805,7 @@ messages.addEventListener("pointerup", (event) => {
   captureItems(covered(rect));
 });
 messages.addEventListener("lostpointercapture", (event) => {
-  if (captureDrag?.pointer === event.pointerId) stopCapture();
+  if (event.target === messages && captureDrag?.pointer === event.pointerId) stopCapture();
 });
 messages.addEventListener("pointercancel", stopCapture);
 
@@ -772,7 +816,7 @@ byId("min-chat").addEventListener("click", () => {
 byId("chat-app").addEventListener("click", () => {
   if (!bench.hidden) showBench(false);
   showChat(true);
-  if (running) capture.focus({ preventScroll: true });
+  byId("chat-app").focus({ preventScroll: true });
 });
 tray.addEventListener("click", () => showBench(true));
 tray.addEventListener("contextmenu", (event) => {
@@ -789,8 +833,7 @@ byId("tray-root").addEventListener("click", () => openFolder());
 byId("tray-exit").addEventListener("click", () => {
   showBench(false);
   closeTray();
-  running = false;
-  capture.disabled = tray.disabled = true;
+  setRunning(false);
   byId("reset").focus({ preventScroll: true });
 });
 document.addEventListener("pointerdown", (event) => {
@@ -813,23 +856,53 @@ byId("root-form").addEventListener("submit", (event) => {
   event.preventDefault();
   root = byId("root-choice").value;
   byId("root-picker").textContent = root;
-  byId("root-folder").disabled = false;
+  byId("root-picker").title = root;
   rootDialog.close();
 });
-byId("root-folder").addEventListener("click", () => openFolder());
 byId("shortcut").addEventListener("click", () => {
   listening = true;
   byId("shortcut").textContent = "按下快捷键";
 });
-byId("warehouse-door").addEventListener("click", () => showSettings(false));
-byId("warehouse-door").addEventListener("pointerdown", (event) => {
-  doorDrag = event.clientY;
-  event.currentTarget.setPointerCapture(event.pointerId);
+function returnFromWarehouse() {
+  showSettings(false);
+  byId("settings").focus({ preventScroll: true });
+}
+
+warehouseDoor.addEventListener("click", (event) => {
+  if (!suppressDoorClick || event.detail === 0) returnFromWarehouse();
 });
-byId("warehouse-door").addEventListener("pointerup", (event) => {
-  if (doorDrag !== null && event.clientY < doorDrag - 25) showSettings(false);
+warehouseDoor.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || !event.isPrimary || doorTimer) return;
+  suppressDoorClick = false;
+  doorDrag = { pointer: event.pointerId, y: event.clientY, x: event.clientX };
+  warehouseDoor.setPointerCapture(event.pointerId);
+});
+warehouseDoor.addEventListener("pointermove", (event) => {
+  if (doorDrag?.pointer !== event.pointerId) return;
+  const rise = doorDrag.y - event.clientY;
+  if (Math.hypot(rise, event.clientX - doorDrag.x) >= 6) suppressDoorClick = true;
+  warehouseDoor.style.setProperty("--door-lift", -Math.min(warehouseDoor.clientHeight, Math.max(0, rise)) + "px");
+});
+function finishDoorDrag(event) {
+  if (doorDrag?.pointer !== event.pointerId) return;
+  const raised = doorDrag.y - event.clientY >= 25;
   doorDrag = null;
-});
+  if (event.type !== "pointerup" || !raised) {
+    warehouseDoor.style.removeProperty("--door-lift");
+    return;
+  }
+  suppressDoorClick = true;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    returnFromWarehouse();
+    return;
+  }
+  warehouseDoor.classList.add("rolling");
+  warehouseDoor.style.setProperty("--door-lift", -warehouseDoor.clientHeight + "px");
+  doorTimer = setTimeout(returnFromWarehouse, 240);
+}
+for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  warehouseDoor.addEventListener(event, finishDoorDrag);
+}
 byId("theme").addEventListener("click", (event) => {
   const light = bench.dataset.theme !== "light";
   bench.dataset.theme = light ? "light" : "dark";
@@ -918,11 +991,10 @@ document.addEventListener("pointermove", (event) => {
     drag.ghost = node("div", "file-card drag-ghost");
     drag.ghost.setAttribute("aria-hidden", "true");
     drag.ghost.replaceChildren(...[...drag.card.children].map((child) => child.cloneNode(true)));
-    drag.ghost.style.width = drag.rect.width + "px";
-    drag.ghost.style.height = drag.rect.height + "px";
-    drag.scale = Math.min(.8, 110 / drag.rect.width);
-    drag.ghost.style.scale = drag.scale;
+    drag.previewWidth = Math.min(pageSize() === 2 ? 90 : 104, drag.rect.width);
+    drag.ghost.style.width = drag.previewWidth + "px";
     board.append(drag.ghost);
+    drag.previewHeight = drag.ghost.offsetHeight;
     drag.card.classList.add("drag-origin");
     dropBin.hidden = !canDiscard(drag.key);
     showPreview();
@@ -930,11 +1002,13 @@ document.addEventListener("pointermove", (event) => {
   updateFileDropTarget(drag, event);
   const bounds = board.getBoundingClientRect();
   const hit = dropBin.hasAttribute("data-hit") && dropBin.getBoundingClientRect();
-  const left = hit ? hit.left - drag.rect.width * drag.scale - 6 : event.clientX - (drag.x - drag.rect.left) * drag.scale;
-  const ghostHeight = drag.rect.height * drag.scale;
+  drag.ghost.classList.toggle("over-bin", Boolean(hit));
+  const left = hit
+    ? hit.left + (hit.width - drag.previewWidth) / 2
+    : event.clientX - (drag.x - drag.rect.left) * drag.previewWidth / drag.rect.width;
   const top = hit
-    ? Math.min(hit.top + (hit.height - ghostHeight) / 2, bounds.bottom - ghostHeight - 4)
-    : event.clientY - (drag.y - drag.rect.top) * drag.scale;
+    ? hit.top - drag.previewHeight * .32
+    : event.clientY - (drag.y - drag.rect.top) * drag.previewHeight / drag.rect.height;
   drag.ghost.style.translate = (left - bounds.left) + "px " + (top - bounds.top) + "px";
 });
 

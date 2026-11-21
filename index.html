@@ -7,8 +7,8 @@
   <meta name="description" content="在 Windows 模拟桌面亲手试用圈收 SnapStow，从群聊圈选附件、链接和备注，再到项目箱里找到它们。">
   <title>圈收 SnapStow · 圈一下，松手继续工作</title>
   <link rel="icon" href="./snapstow.png">
-  <link rel="stylesheet" href="./style.css?v=warehouse-belt">
-  <script src="./demo.js?v=warehouse-belt" defer></script>
+  <link rel="stylesheet" href="./style.css?v=desktop-examples">
+  <script src="./demo.js?v=desktop-examples" defer></script>
 </head>
 <body>
   <a class="skip" href="#try">跳到桌面体验</a>
@@ -16,14 +16,20 @@
     <section class="desktop" id="try" aria-label="Windows 模拟桌面" tabindex="-1">
       <div class="screen" id="screen">
         <div class="wallpaper" aria-hidden="true"><i></i><i></i><i></i></div>
+        <section class="desktop-guide" id="desktop-guide" aria-labelledby="desktop-title">
+          <h1 id="desktop-title">圈收 <span lang="en">SnapStow</span></h1>
+          <p id="desktop-cue" aria-live="polite">圈一下，松手继续工作。</p>
+          <div class="desktop-examples" role="group" aria-label="操作示例">
+            <button type="button" class="desktop-action" id="capture" aria-pressed="false" aria-keyshortcuts="Alt+Shift+S">圈选群聊</button>
+            <button type="button" class="desktop-action" id="try-queue">拖文件入箱</button>
+            <button type="button" class="desktop-action" id="try-archive">打开项目箱</button>
+          </div>
+        </section>
 
         <section class="window chat-window" id="chat-window" aria-labelledby="chat-title">
           <header class="chat-chrome">
             <i class="glyph chat-glyph" aria-hidden="true"></i>
-            <div class="chat-tools">
-              <button type="button" class="icon-control capture" id="capture" aria-label="圈选" aria-pressed="false" aria-keyshortcuts="Alt+Shift+S"><i class="glyph capture-glyph" aria-hidden="true"></i></button>
-              <button type="button" class="icon-control chrome-close" id="min-chat" aria-label="最小化群聊" title="最小化群聊"><span aria-hidden="true">−</span></button>
-            </div>
+            <button type="button" class="icon-control chrome-close" id="min-chat" aria-label="最小化群聊" title="最小化群聊"><span aria-hidden="true">−</span></button>
           </header>
           <div class="chat-layout">
             <div class="channels" role="group" aria-label="群聊列表">
@@ -84,7 +90,6 @@
                 <img class="warehouse-body" src="./art/warehouse.svg" alt="">
                 <img class="warehouse-body light-art" src="./art/warehouse-light.svg" alt="">
                 <button type="button" class="warehouse-sign" id="root-picker">工作总目录</button>
-                <button type="button" class="icon-control warehouse-folder tool" id="root-folder" aria-label="打开工作总目录" title="打开工作总目录"><img src="./art/folder-open.svg" alt=""></button>
                 <button type="button" class="warehouse-door" id="warehouse-door" aria-label="抬起卷帘门，返回工作台" title="返回工作台">
                   <img src="./art/warehouse-door.svg" alt=""><img class="light-art" src="./art/warehouse-door-light.svg" alt="">
                 </button>
